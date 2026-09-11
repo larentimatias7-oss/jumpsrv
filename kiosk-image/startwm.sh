@@ -4,32 +4,39 @@
 TARGET_URL="${TARGET_URL:-http://localhost}"
 SCREEN_WIDTH="${SCREEN_WIDTH:-1920}"
 SCREEN_HEIGHT="${SCREEN_HEIGHT:-1080}"
-CHROME_PROFILE="/home/kiosk/.config/chromium-kiosk"
+USER_HOME=$(eval echo "~$USER")
+CHROME_PROFILE="${USER_HOME}/.config/chromium-kiosk"
 
 mkdir -p "${CHROME_PROFILE}"
 
-# Start XFCE4 desktop in background
-startxfce4 &
+# Avoid duplicate loops if startwm is invoked again in same session
+PIDFILE="${USER_HOME}/.chromium_kiosk.pid"
+if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+    exit 0
+fi
+echo "$$" > "$PIDFILE"
 
-# Wait for XFCE display to stabilize
-sleep 3
-
-# Chromium respawn loop
-while true; do
-    chromium-browser \
-        --no-sandbox \
-        --disable-infobars \
-        --disable-translate \
-        --no-first-run \
-        --no-default-browser-check \
-        --noerrdialogs \
-        --disable-session-crashed-bubble \
-        --password-store=basic \
-        --user-data-dir="${CHROME_PROFILE}" \
-        --kiosk \
-        --window-size=${SCREEN_WIDTH},${SCREEN_HEIGHT} \
-        --window-position=0,0 \
-        "${TARGET_URL}"
-    
+# Start XFCE4 desktop in background if not running
+if ! pgrep -u "$USER" xfce4-session >/dev/null 2>&1; then
+    startxfce4 &
     sleep 2
-done
+fi
+
+# Launch chromium directly once, let it manage itself
+exec /usr/lib/chromium/chromium \
+    --no-sandbox \
+    --disable-gpu \
+    --disable-software-rasterizer \
+    --disable-dev-shm-usage \
+    --disable-infobars \
+    --disable-translate \
+    --no-first-run \
+    --no-default-browser-check \
+    --noerrdialogs \
+    --disable-session-crashed-bubble \
+    --password-store=basic \
+    --user-data-dir="${CHROME_PROFILE}" \
+    --kiosk \
+    --window-size=${SCREEN_WIDTH},${SCREEN_HEIGHT} \
+    --window-position=0,0 \
+    "${TARGET_URL}"

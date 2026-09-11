@@ -75,6 +75,7 @@ class DockerRuntime:
         target_url: str,
         kiosk_id: str,
         kiosk_name: str,
+        rdp_username: str = "kiosk",
         screen_width: int = 1920,
         screen_height: int = 1080,
     ) -> str:
@@ -103,6 +104,7 @@ class DockerRuntime:
             "SCREEN_WIDTH": str(screen_width),
             "SCREEN_HEIGHT": str(screen_height),
             "KIOSK_NAME": kiosk_name,
+            "RDP_USERNAME": rdp_username,
         }
 
         container = self.client.containers.run(
@@ -110,7 +112,8 @@ class DockerRuntime:
             name=container_name,
             detach=True,
             restart_policy={"Name": "unless-stopped"},
-            shm_size="2g",
+            shm_size="256m",
+            mem_limit="1g",
             ports=ports,
             volumes=volumes,
             environment=environment,

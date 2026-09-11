@@ -253,7 +253,7 @@ onMounted(() => {
         <form @submit.prevent="createKiosk" class="modal-form">
           <div class="form-group">
             <label>Device Name (JumpServer Asset)</label>
-            <input v-model="form.name" placeholder="e.g. SWSR-CORE02" required pattern="[A-Za-z0-9-_]+" />
+            <input v-model="form.name" placeholder="e.g. SWSR-CORE02 or zabbix local" required />
           </div>
 
           <div class="form-row">
@@ -285,6 +285,11 @@ onMounted(() => {
               <label>Port</label>
               <input v-model.number="form.target_port" type="number" required />
             </div>
+          </div>
+
+          <div class="form-group">
+            <label>Path or Custom URL (Optional)</label>
+            <input v-model="form.target_url" placeholder="e.g. /zabbix/ or http://192.168.1.110/zabbix/" />
           </div>
 
           <div class="form-group">

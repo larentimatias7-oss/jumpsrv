@@ -35,13 +35,13 @@ class JumpServerOperations:
         ip: str,
         port: int,
         node_id: str | None = None,
-        platform: str = "Windows",
+        platform_id: int = 5,
         comment: str = "Managed by JumpServer Kiosk Manager",
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "name": name,
             "address": ip,
-            "platform": platform,
+            "platform": platform_id,
             "protocols": [{"name": "rdp", "port": port}],
             "is_active": True,
             "comment": comment,
@@ -49,7 +49,7 @@ class JumpServerOperations:
         if node_id:
             payload["nodes"] = [node_id]
 
-        return self.client.post("/api/v1/assets/assets/", payload)
+        return self.client.post("/api/v1/assets/hosts/", payload)
 
     def create_account(
         self,
@@ -82,7 +82,7 @@ class JumpServerOperations:
         payload: dict[str, Any] = {
             "name": name,
             "assets": [asset_id],
-            "accounts": [account_username],
+            "accounts": ["@ALL", account_username],
             "actions": actions or ["connect", "copy", "paste"],
             "is_active": True,
         }

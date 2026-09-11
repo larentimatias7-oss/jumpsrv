@@ -102,10 +102,11 @@ class KioskProvisioner:
 
             # 2. Allocate port & RDP credentials
             port = self._allocate_port(session)
-            rdp_user = f"kiosk_{clean_name.lower().replace('-', '_')}"
+            sanitized_suffix = "".join(ch if ch.isalnum() else "_" for ch in clean_name.lower())
+            rdp_user = f"kiosk_{sanitized_suffix}"
             rdp_password = self._generate_password(32)
-            container_name = f"kiosk-{clean_name.lower()}"
-            volume_name = f"rdp_{clean_name.lower().replace('-', '_')}"
+            container_name = f"kiosk-{sanitized_suffix}"
+            volume_name = f"rdp_{sanitized_suffix}"
 
             # 3. Create record in PENDING
             kiosk = KioskModel(
@@ -143,6 +144,7 @@ class KioskProvisioner:
                 target_url=target_url,
                 kiosk_id=kiosk_id,
                 kiosk_name=clean_name,
+                rdp_username=rdp_user,
             )
             created_resources.append(("container", container_name))
 
@@ -152,7 +154,7 @@ class KioskProvisioner:
                 ip=self.host_ip,
                 port=port,
                 node_id=req.node_id,
-                platform="Windows",
+                platform_id=5,
             )
             jms_asset_id = jms_asset.get("id")
             created_resources.append(("jms_asset", jms_asset_id))
