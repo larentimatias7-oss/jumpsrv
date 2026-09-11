@@ -1,0 +1,12 @@
+{
+  "device_type": "idrac",
+  "display_name": "Dell iDRAC 8/9",
+  "default_protocol": "https",
+  "default_port": 443,
+  "chromium_flags": [
+    "--ignore-certificate-errors",
+    "--allow-running-insecure-content"
+  ],
+  "login_path": "/start.html",
+  "notes": "Dell Integrated Dell Remote Access Controller"
+}

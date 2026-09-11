@@ -1,0 +1,13 @@
+{
+  "device_type": "fortigate",
+  "display_name": "Fortinet FortiGate Firewall",
+  "default_protocol": "https",
+  "default_port": 443,
+  "chromium_flags": [
+    "--ignore-certificate-errors",
+    "--allow-running-insecure-content",
+    "--disable-web-security"
+  ],
+  "login_path": "/login",
+  "notes": "FortiOS HTTPS administration"
+}

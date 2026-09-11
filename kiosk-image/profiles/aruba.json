@@ -1,0 +1,12 @@
+{
+  "device_type": "aruba",
+  "display_name": "Aruba Instant AP / Switch",
+  "default_protocol": "https",
+  "default_port": 4343,
+  "chromium_flags": [
+    "--ignore-certificate-errors",
+    "--allow-running-insecure-content"
+  ],
+  "login_path": "/",
+  "notes": "Aruba Instant On / OS-CX web interface"
+}

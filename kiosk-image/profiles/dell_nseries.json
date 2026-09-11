@@ -1,0 +1,12 @@
+{
+  "device_type": "dell_nseries",
+  "display_name": "Dell N-Series Switch",
+  "default_protocol": "http",
+  "default_port": 80,
+  "chromium_flags": [
+    "--ignore-certificate-errors",
+    "--allow-running-insecure-content"
+  ],
+  "login_path": "/",
+  "notes": "Dell Networking N4000/N3000 series web management"
+}

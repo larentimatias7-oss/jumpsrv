@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+import sys
+import typer
+from rich.console import Console
+from rich.table import Table
+
+# Add backend directory to sys.path
+import os
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../backend"))
+if backend_path not in sys.path:
+    sys.path.insert(0, backend_path)
+
+from app.provisioning.provisioner import KioskProvisioner, KioskCreateRequest
+
+app = typer.Typer(help="JumpServer Kiosk Manager CLI tool")
+console = Console()
+
+
+@app.command("list")
+def list_kiosks():
+    """List all managed kiosks, their RDP port, and container health."""
+    provisioner = KioskProvisioner()
+    kiosks = provisioner.list_all()
+
+    table = Table(title="Managed JumpServer Kiosks")
+    table.add_column("Name", style="cyan", no_wrap=True)
+    table.add_column("Type", style="magenta")
+    table.add_column("Target URL", style="blue")
+    table.add_column("RDP Port", style="green")
+    table.add_column("Status", style="bold")
+    table.add_column("Container", style="yellow")
+    table.add_column("Health", style="white")
+
+    for k in kiosks:
+        status_color = "green" if k["status"] == "RUNNING" else "red"
+        table.add_row(
+            k["name"],
+            k["device_type"],
+            k["target_url"],
+            str(k["rdp_port"]),
+            f"[{status_color}]{k['status']}[/{status_color}]",
+            k["container_status"],
+            k["container_health"],
+        )
+
+    console.print(table)
+
+
+@app.command("create")
+def create_kiosk(
+    name: str = typer.Option(..., "--name", "-n", help="Device name (e.g. SWSR-CORE02)"),
+    device_type: str = typer.Option("generic", "--type", "-t", help="Profile type (dell_nseries, fortigate, aruba, idrac, generic)"),
+    ip: str = typer.Option(..., "--ip", "-i", help="Device target IP address"),
+    port: int = typer.Option(80, "--port", "-p", help="Device web port"),
+    protocol: str = typer.Option("http", "--proto", help="Protocol: http or https"),
+    node: str = typer.Option(None, "--node", help="JumpServer target node ID"),
+):
+    """Provision a new Kiosk container and JumpServer RDP asset."""
+    provisioner = KioskProvisioner()
+    console.print(f"[bold yellow]Provisioning {name} ({protocol}://{ip}:{port})...[/bold yellow]")
+    try:
+        req = KioskCreateRequest(
+            name=name,
+            device_type=device_type,
+            target_ip=ip,
+            target_protocol=protocol,
+            target_port=port,
+            node_id=node,
+        )
+        res = provisioner.provision(req)
+        console.print(f"[bold green]✓ Successfully provisioned kiosk '{res['name']}' on RDP port {res['rdp_port']}![/bold green]")
+        console.print(f"JumpServer Asset ID: {res['jms_asset_id']}")
+    except Exception as e:
+        console.print(f"[bold red]✗ Failed to provision kiosk: {e}[/bold red]")
+        sys.exit(1)
+
+
+@app.command("restart")
+def restart_kiosk(kiosk_id: str = typer.Argument(..., help="Kiosk ID")):
+    """Restart a kiosk container."""
+    provisioner = KioskProvisioner()
+    if provisioner.restart(kiosk_id):
+        console.print(f"[green]✓ Kiosk {kiosk_id} restarted.[/green]")
+    else:
+        console.print(f"[red]✗ Failed to restart {kiosk_id}[/red]")
+        sys.exit(1)
+
+
+@app.command("delete")
+def delete_kiosk(kiosk_id: str = typer.Argument(..., help="Kiosk ID")):
+    """Deprovision and safely remove a kiosk container and JumpServer asset."""
+    provisioner = KioskProvisioner()
+    if provisioner.deprovision(kiosk_id):
+        console.print(f"[green]✓ Kiosk {kiosk_id} deleted cleanly.[/green]")
+    else:
+        console.print(f"[red]✗ Failed to delete {kiosk_id}[/red]")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    app()

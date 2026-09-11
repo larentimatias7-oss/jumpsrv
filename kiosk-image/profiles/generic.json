@@ -1,0 +1,11 @@
+{
+  "device_type": "generic",
+  "display_name": "Generic Web Device",
+  "default_protocol": "http",
+  "default_port": 80,
+  "chromium_flags": [
+    "--ignore-certificate-errors"
+  ],
+  "login_path": "/",
+  "notes": "Standard web interface"
+}
