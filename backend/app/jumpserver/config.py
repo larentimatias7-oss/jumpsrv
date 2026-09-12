@@ -1,6 +1,8 @@
 from __future__ import annotations
+import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
 
@@ -19,13 +21,23 @@ class JumpServerSettings(BaseSettings):
     secret_file: Path | None = Field(default=None, description="Path to 600 file with secret")
     secret_value: str | None = Field(default=None, description="Direct secret in memory or test env")
     org_id: str = Field(
-        default="00000000-0000-0000-0000-000000000002",
+        default_factory=lambda: os.getenv("JUMPSERVER_ORG_ID", os.getenv("JMS_ORG_ID", "00000000-0000-0000-0000-000000000002")),
         description="Default org UUID in JumpServer 4.x",
     )
     verify_ssl: bool = Field(default=False, description="Verify SSL certificate")
     ca_bundle: Path | None = Field(default=None, description="Custom CA bundle")
     timeout: float = Field(default=30.0, description="HTTP timeout seconds")
     max_retries: int = Field(default=3, description="Max HTTP retries")
+
+    @field_validator("org_id", mode="before")
+    @classmethod
+    def _validate_org_id(cls, v: Any) -> str:
+        env_val = os.getenv("JUMPSERVER_ORG_ID")
+        if env_val:
+            return env_val.strip()
+        if v:
+            return str(v).strip()
+        return os.getenv("JMS_ORG_ID", "00000000-0000-0000-0000-000000000002")
 
     @field_validator("secret_file")
     @classmethod
@@ -48,6 +60,10 @@ class JumpServerSettings(BaseSettings):
         return ""
 
 
+JumpServerConfig = JumpServerSettings
+
+
 @lru_cache
 def get_jms_settings() -> JumpServerSettings:
     return JumpServerSettings()
+

@@ -20,22 +20,25 @@ logger = logging.getLogger("kiosk.jumpserver")
 
 class JumpServerClient:
     def __init__(self, settings: JumpServerSettings | None = None) -> None:
-        self._s = settings or get_jms_settings()
-        parsed = urlparse(self._s.base_url)
+        self.config = settings or get_jms_settings()
+        self._s = self.config
+        parsed = urlparse(self.config.base_url)
         if parsed.scheme not in ("http", "https"):
             raise ValueError(f"Invalid base_url scheme: {parsed.scheme}")
         self._base = urlunparse((parsed.scheme, parsed.netloc, "", "", "", ""))
-        self._secret = self._s.load_secret()
-        self._verify = str(self._s.ca_bundle) if self._s.ca_bundle else self._s.verify_ssl
+        self._secret = self.config.load_secret()
+        self._verify = str(self.config.ca_bundle) if self.config.ca_bundle else self.config.verify_ssl
 
     def _headers(self, method: str, path: str) -> dict[str, str]:
-        return signed_headers(
+        headers = signed_headers(
             method=method,
             path=path,
-            key_id=self._s.key_id,
+            key_id=self.config.key_id,
             secret=self._secret,
-            org_id=self._s.org_id,
+            org_id=self.config.org_id,
         )
+        headers["X-JMS-ORG"] = self.config.org_id
+        return headers
 
     def _request(
         self,
@@ -52,12 +55,16 @@ class JumpServerClient:
         signed_path = req.url.raw_path.decode("ascii")
 
         last_exc: Exception | None = None
-        for attempt in range(1, self._s.max_retries + 1):
+        for attempt in range(1, self.config.max_retries + 1):
             try:
                 with httpx.Client(
                     base_url=self._base,
                     verify=self._verify,
-                    timeout=self._s.timeout,
+                    timeout=self.config.timeout,
+                    headers={
+                        "Accept": "application/json",
+                        "X-JMS-ORG": self.config.org_id,
+                    },
                 ) as http:
                     headers = self._headers(method, signed_path)
                     resp = http.request(
@@ -73,7 +80,7 @@ class JumpServerClient:
                 )
                 logger.warning(
                     "retry %d/%d %s %s: %s",
-                    attempt, self._s.max_retries, method, signed_path, e,
+                    attempt, self.config.max_retries, method, signed_path, e,
                 )
                 time.sleep(min(2 ** attempt, 8))
         if last_exc:
@@ -100,8 +107,14 @@ class JumpServerClient:
     def get(self, path: str, **params: Any) -> Any:
         return self._request("GET", path, params=params)
 
-    def post(self, path: str, body: dict[str, Any]) -> Any:
-        return self._request("POST", path, json_body=body)
+    def post(self, path: str, body: dict[str, Any] | None = None) -> Any:
+        return self._request("POST", path, json_body=body or {})
+
+    def put(self, path: str, body: dict[str, Any] | None = None) -> Any:
+        return self._request("PUT", path, json_body=body or {})
+
+    def patch(self, path: str, body: dict[str, Any] | None = None) -> Any:
+        return self._request("PATCH", path, json_body=body or {})
 
     def delete(self, path: str) -> Any:
         return self._request("DELETE", path)
