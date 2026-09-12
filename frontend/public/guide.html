@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guía de Usuario - JumpServer Kiosk Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0b0f19;
+      --bg-card: rgba(18, 24, 38, 0.85);
+      --bg-card-alt: rgba(26, 34, 52, 0.7);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(99, 102, 241, 0.4);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #6366f1;
+      --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+      --accent-glow: 0 0 25px rgba(99, 102, 241, 0.35);
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --font-sans: 'Outfit', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-main);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(217, 70, 239, 0.10) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      padding: 0 20px 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    /* Header & Hero */
+    header {
+      padding: 40px 0 30px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-icon {
+      background: var(--accent-gradient);
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      color: white;
+      box-shadow: var(--accent-glow);
+    }
+
+    .brand-text h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-text h1 span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--accent-gradient);
+      color: white;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+      border: none;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Glass Cards */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+
+    h2.section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h2.section-title .title-icon {
+      font-size: 1.3rem;
+    }
+
+    p {
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+    }
+
+    /* Grid layout */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .feature-box {
+      background: var(--bg-card-alt);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .feature-box.accent-border {
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 4px;
+    }
+
+    .feature-box h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Steps list */
+    .step-card {
+      background: var(--bg-card-alt);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      position: relative;
+      padding-left: 75px;
+    }
+
+    .step-number {
+      position: absolute;
+      left: 20px;
+      top: 24px;
+      width: 40px;
+      height: 40px;
+      background: var(--accent-gradient);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .step-card h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .step-card ul {
+      margin-left: 20px;
+      margin-top: 8px;
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+    }
+
+    .step-card ul li {
+      margin-bottom: 6px;
+    }
+
+    /* Code Snippets */
+    code, pre {
+      font-family: var(--font-mono);
+    }
+
+    code {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.88em;
+    }
+
+    .code-block {
+      background: #070a12;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      margin: 12px 0;
+      overflow-x: auto;
+    }
+
+    /* Table */
+    table.guide-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.9rem;
+    }
+
+    table.guide-table th {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    table.guide-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    table.guide-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .badge-info { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+    .badge-warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+
+    /* Tips & Alerts */
+    .alert-box {
+      border-left: 4px solid var(--accent);
+      background: rgba(99, 102, 241, 0.08);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 20px 0;
+      font-size: 0.92rem;
+    }
+
+    .alert-box.success {
+      border-left-color: var(--success);
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    .alert-box strong {
+      color: var(--text-primary);
+    }
+
+    /* Print support */
+    @media print {
+      body { background: white; color: black; }
+      .card { border: 1px solid #ccc; box-shadow: none; background: transparent; }
+      .btn, .nav-actions { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Navbar / Header -->
+    <header>
+      <div class="brand-group">
+        <div class="brand-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>JumpServer <span>Kiosk Manager</span></h1>
+          <p>Manual Oficial de Usuario y Guía de Operaciones</p>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <a href="http://192.168.1.220:8080/" target="_blank" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+          </svg>
+          Abrir Dashboard (:8080)
+        </a>
+        <a href="http://192.168.1.220/luna/" target="_blank" class="btn btn-outline">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          JumpServer Luna
+        </a>
+      </div>
+    </header>
+
+    <!-- Descripción General -->
+    <section class="card">
+      <h2 class="section-title"><span class="title-icon">📘</span> 1. Descripción General del Sistema</h2>
+      <p>
+        <strong>JumpServer Kiosk Manager</strong> es una solución autónoma de orquestación de quioscos RDP web para <strong>JumpServer Community Edition (CE)</strong>. 
+        Permite a los administradores de sistemas y redes acceder a las consolas de gestión web de dispositivos de infraestructura (servidores de monitoreo Zabbix, routers MikroTik, firewalls FortiGate, hipervisores Proxmox, switches, consolas iDRAC y cámaras IP) a través del portal de JumpServer Luna.
+      </p>
+      <p>
+        Cada activo registrado genera un puente seguro y aislado en pantalla completa mediante un navegador Chromium embebido, garantizando auditoría centralizada, grabación de sesiones en video y control de accesos RBAC sin requerir el módulo comercial Enterprise Web Terminal.
+      </p>
+
+      <div class="grid-2">
+        <div class="feature-box accent-border">
+          <span class="feature-icon">⚡</span>
+          <h3>Arquitectura Bajo Demanda (Ephemeral)</h3>
+          <p>Los contenedores no permanecen encendidos en segundo plano. Se inician de forma automática en 1-2 segundos cuando alguien se conecta y se apagan solos tras 120s de inactividad, logrando <strong>0% CPU y 0 MB RAM en reposo</strong>.</p>
+        </div>
+
+        <div class="feature-box accent-border">
+          <span class="feature-icon">🔒</span>
+          <h3>Aislamiento Estricto 1:1</h3>
+          <p>Cada equipo dispone de su propio contenedor y volumen Docker independiente. Las cookies, sesiones activas y credenciales nunca se mezclan entre dispositivos.</p>
+        </div>
+
+        <div class="feature-box accent-border">
+          <span class="feature-icon">🛡️</span>
+          <h3>Hardening de Navegación</h3>
+          <p>Chromium opera con políticas corporativas gestionadas: herramientas de desarrollador (F12) desactivadas, descargas bloqueadas e imposibilidad de salir del modo quiosco.</p>
+        </div>
+
+        <div class="feature-box accent-border">
+          <span class="feature-icon">🔑</span>
+          <h3>Persistencia de Credenciales</h3>
+          <p>El almacén de contraseñas integrado de Chromium permite que recuerdes inicios de sesión del dispositivo sin riesgo de perderlos al reiniciar el contenedor.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Paso a Paso para Agregar Dispositivos -->
+    <section class="card">
+      <h2 class="section-title"><span class="title-icon">🚀</span> 2. Guía Paso a Paso: Cómo Agregar un Nuevo Dispositivo Web</h2>
+      <p>Sigue estos sencillos pasos para aprovisionar un nuevo equipo en menos de 30 segundos:</p>
+
+      <!-- Paso 1 -->
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <h3>Abrir el Dashboard de Administración</h3>
+        <p>Ingresa en tu navegador a la URL del panel de control de quioscos:</p>
+        <div class="code-block">http://192.168.1.220:8080/</div>
+        <p>Las credenciales administrativas por defecto son <code>admin</code> / <code>admin</code>.</p>
+      </div>
+
+      <!-- Paso 2 -->
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <h3>Hacer Clic en "+ New Device Kiosk"</h3>
+        <p>En la esquina superior derecha del panel, pulsa el botón violeta <strong>+ New Device Kiosk</strong>. Se abrirá la ventana emergente de aprovisionamiento.</p>
+      </div>
+
+      <!-- Paso 3 -->
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <h3>Completar los Datos del Dispositivo</h3>
+        <ul>
+          <li><strong>Device Name:</strong> Nombre identificatorio del activo (ej: <code>ZABBIX-LOCAL</code>, <code>ROUTER-MIKROTIK</code>, <code>SW-CORE-01</code>). Este mismo nombre aparecerá en JumpServer.</li>
+          <li><strong>Device Type Profile:</strong> Selecciona la plantilla adecuada (Zabbix, Router, Switch, Proxmox, FortiGate, iDRAC o Genérico).</li>
+          <li><strong>Protocol & IP:</strong> Protocolo (<code>HTTP</code> o <code>HTTPS</code>) y la dirección IP privada del dispositivo (ej: <code>192.168.1.110</code>).</li>
+          <li><strong>Port:</strong> Puerto web del equipo (por defecto <code>80</code> para HTTP o <code>443</code> para HTTPS).</li>
+          <li><strong>Path or Custom URL (Opcional):</strong> Si el servicio requiere una ruta específica, puedes ingresarla aquí. Ejemplo: <code>http://192.168.1.110/zabbix/</code> o <code>/zabbix/</code>.</li>
+        </ul>
+      </div>
+
+      <!-- Paso 4 -->
+      <div class="step-card">
+        <div class="step-number">4</div>
+        <h3>Pulsar "Provision & Link JumpServer"</h3>
+        <p>El sistema ejecutará de forma autónoma en pocos segundos:</p>
+        <ul>
+          <li>Asignación de un puerto RDP exclusivo en el rango <code>33891 - 33920</code>.</li>
+          <li>Creación del volumen persistente para almacenar sesiones del navegador.</li>
+          <li>Registro del activo en JumpServer con certificados permisivos (<code>ignore_cert: true</code>).</li>
+          <li>Creación de la cuenta de acceso y autorización con firma HMAC-SHA256.</li>
+          <li>Inicio del listener en el Dispatcher.</li>
+        </ul>
+      </div>
+
+      <!-- Paso 5 -->
+      <div class="step-card">
+        <div class="step-number">5</div>
+        <h3>Conectar y Utilizar en JumpServer Luna</h3>
+        <p>¡Listo! Puedes conectar de dos formas:</p>
+        <ul>
+          <li><strong>Conexión Directa desde el Dashboard:</strong> Haz clic en el botón verde <strong>🚀 Conectar</strong> en la fila del dispositivo. Se abrirá la sesión de Luna de inmediato.</li>
+          <li><strong>Desde JumpServer Luna:</strong> Accede a <code>http://192.168.1.220/luna/</code>, busca el dispositivo en la lista de activos y haz clic para conectar.</li>
+        </ul>
+      </div>
+
+      <div class="alert-box success">
+        <strong>💡 Consejo Pro:</strong> La primera vez que inicies sesión en la web del dispositivo (ej. usuario <code>Admin</code> / clave <code>zabbix</code>), permite que Chromium guarde la contraseña. Gracias al volumen persistente dedicado, no tendrás que volver a escribirla en futuras sesiones.
+      </div>
+    </section>
+
+    <!-- Funciones del Dashboard -->
+    <section class="card">
+      <h2 class="section-title"><span class="title-icon">🎛️</span> 3. Funciones del Dashboard de Gestión</h2>
+      <p>El panel de control incluye herramientas diseñadas para simplificar la operación diaria:</p>
+
+      <table class="guide-table">
+        <thead>
+          <tr>
+            <th>Botón / Acción</th>
+            <th>Nombre</th>
+            <th>Descripción y Utilidad</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-success">🚀 Conectar</span></td>
+            <td><strong>One-Click Connect</strong></td>
+            <td>Abre la sesión gráfica en JumpServer Luna en una nueva pestaña sin tener que navegar por los menús de JumpServer.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warning">⚡ Probar</span></td>
+            <td><strong>Sondeo de Red en Vivo</strong></td>
+            <td>Envía una petición HTTP de prueba al dispositivo destino para verificar si está encendido y accesible, mostrando código HTTP y latencia en ms.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">✏️ Editar</span></td>
+            <td><strong>Editar Quiosco</strong></td>
+            <td>Permite cambiar la URL de destino (ej: agregar una ruta <code>/zabbix/</code> o cambiar de puerto), renombrar el equipo o modificar el perfil de dispositivo.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">🧹 Limpiar</span></td>
+            <td><strong>Limpiar Caché</strong></td>
+            <td>Borra las cookies, sesiones expiradas y datos temporales de Chromium para ese dispositivo sin eliminar el activo en JumpServer.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warning">🔄 Reiniciar</span></td>
+            <td><strong>Reiniciar Sesión</strong></td>
+            <td>Reinicia el contenedor Docker del quiosco si la interfaz gráfica queda colgada o inactiva.</td>
+          </tr>
+          <tr>
+            <td><span class="badge" style="background: rgba(239,68,68,0.2); color:#f87171;">🗑️ Eliminar</span></td>
+            <td><strong>Baja Completa</strong></td>
+            <td>Elimina el quiosco, desvincula el activo y las cuentas en JumpServer y libera el puerto RDP para otro equipo.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Preguntas Frecuentes / Troubleshooting -->
+    <section class="card">
+      <h2 class="section-title"><span class="title-icon">❓</span> 4. Preguntas Frecuentes y Consejos Operativos</h2>
+
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 1.05rem; margin-bottom: 6px; color: var(--text-primary);">¿Por qué el estado del contenedor dice "💤 En Espera (0% RAM)"?</h3>
+        <p>Es el comportamiento normal y deseado. Para no consumir la memoria RAM de tu servidor Proxmox, los contenedores solo se encienden mientras alguien los está usando. Cuando te desconectas, tras 120 segundos se detienen automáticamente para ahorrar memoria.</p>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 1.05rem; margin-bottom: 6px; color: var(--text-primary);">¿Qué hago si cambié la IP o ruta de un equipo?</h3>
+        <p>No necesitas borrar el dispositivo y crearlo de nuevo. Simplemente haz clic en el botón <strong>✏️ Editar</strong>, ingresa la nueva URL (ej: <code>http://192.168.1.110/zabbix/</code>) y presiona "Guardar Cambios". En tu próxima conexión, el quiosco abrirá la nueva ruta automáticamente.</p>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 1.05rem; margin-bottom: 6px; color: var(--text-primary);">¿Cuántos dispositivos puedo agregar simultáneamente?</h3>
+        <p>El pool predeterminado asigna puertos desde el <code>33891</code> hasta el <code>33920</code> (30 quioscos). Si necesitas más puertos, se puede ampliar el rango fácilmente en el archivo <code>.env</code> del backend.</p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding-top: 20px;">
+      JumpServer Kiosk Manager &copy; 2026. Desplegado en JumpServer Community Edition.
+    </footer>
+  </div>
+</body>
+</html>

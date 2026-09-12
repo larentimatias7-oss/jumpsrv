@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import socket
 import time
 from typing import Dict, Optional
@@ -7,6 +8,7 @@ from ..docker_runtime.client import DockerRuntime
 from ..models.database import KioskModel, init_db
 
 logger = logging.getLogger("kiosk.dispatcher")
+DEFAULT_KIOSK_IMAGE = os.getenv("KIOSK_DOCKER_IMAGE", "ghcr.io/larentimatias7-oss/jumpsrv/pam-web-kiosk:latest")
 
 
 class KioskDispatcher:
@@ -93,7 +95,7 @@ class KioskDispatcher:
         logger.info(f"[Container starting...] Ensuring container {container_name} is running for {clean_name}...")
         self.docker.ensure_container_running(
             container_name=container_name,
-            image="pam-web-kiosk:v1",
+            image=DEFAULT_KIOSK_IMAGE,
             volume_name=volume_name,
             host_ip=host_ip,
             host_port=port,

@@ -119,3 +119,17 @@ docker build -t pam-web-kiosk:v1 /root/jumpserver-kiosk-manager/kiosk-image
 - [Guía de Operaciones](docs/operations.md): Mantenimiento, respaldos, comandos útiles y políticas corporativas.
 - [Guía de Solución de Problemas](docs/troubleshooting.md): Resolución de errores comunes (Guacamole 519, permisos PAM, certificados).
 - [Manual de Usuario Web](docs/guia-usuario.html): Manual interactivo para administradores y operadores.
+
+---
+
+## ⚡ Despliegue Rápido en Nuevos Hosts
+
+Para replicar y levantar JumpServer Kiosk Manager en cualquier nueva máquina o nodo de infraestructura con un solo comando:
+
+```bash
+mkdir -p /opt/jumpsrv && cd /opt/jumpsrv && \
+curl -sSL https://raw.githubusercontent.com/larentimatias7-oss/jumpsrv/main/docker-compose.prod.yml -o docker-compose.yml && \
+docker compose pull && \
+docker compose up -d
+```
+

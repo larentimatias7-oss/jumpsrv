@@ -1,4 +1,4 @@
-from __future__ import annotations
+import os
 import datetime
 import uuid
 from sqlalchemy import (
@@ -48,7 +48,9 @@ class KioskModel(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 
-def init_db(db_url: str = "sqlite:////root/jumpserver-kiosk-manager/kiosk.db"):
+def init_db(db_url: str = None):
+    if not db_url:
+        db_url = os.getenv("DATABASE_URL", "sqlite:////root/jumpserver-kiosk-manager/kiosk.db")
     engine = create_engine(
         db_url,
         connect_args={"check_same_thread": False},

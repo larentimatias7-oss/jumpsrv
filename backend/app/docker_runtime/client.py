@@ -12,6 +12,8 @@ LABEL_VALUE = "jumpserver-kiosk-manager"
 LABEL_KIOSK_ID = "kiosk-id"
 LABEL_KIOSK_NAME = "kiosk-name"
 
+DEFAULT_KIOSK_IMAGE = os.getenv("KIOSK_DOCKER_IMAGE", "ghcr.io/larentimatias7-oss/jumpsrv/pam-web-kiosk:latest")
+
 
 class DockerRuntime:
     """Manages containers exclusively via Rootless Docker daemon."""
@@ -68,13 +70,13 @@ class DockerRuntime:
     def run_kiosk_container(
         self,
         container_name: str,
-        image: str,
         volume_name: str,
         host_ip: str,
         host_port: int,
         target_url: str,
         kiosk_id: str,
         kiosk_name: str,
+        image: str = DEFAULT_KIOSK_IMAGE,
         rdp_username: str = "kiosk",
         screen_width: int = 1920,
         screen_height: int = 1080,
@@ -125,13 +127,13 @@ class DockerRuntime:
     def ensure_container_running(
         self,
         container_name: str,
-        image: str,
         volume_name: str,
         host_ip: str,
         host_port: int,
         target_url: str,
         kiosk_id: str,
         kiosk_name: str,
+        image: str = DEFAULT_KIOSK_IMAGE,
         rdp_username: str = "kiosk",
     ) -> bool:
         try:

@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ghcr.io/larentimatias7-oss/jumpsrv/pam-kiosk-backend:latest
+    container_name: kiosk-manager-backend
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      - KIOSK_DOCKER_IMAGE=ghcr.io/larentimatias7-oss/jumpsrv/pam-web-kiosk:latest
+      - DATABASE_URL=sqlite:////app/data/kiosk.db
+      - KIOSK_HOST_IP=${KIOSK_HOST_IP:-192.168.1.220}
+      - KIOSK_PORT_RANGE_START=${KIOSK_PORT_RANGE_START:-33891}
+      - KIOSK_PORT_RANGE_END=${KIOSK_PORT_RANGE_END:-33920}
+      - JMS_BASE_URL=${JMS_BASE_URL:-http://127.0.0.1:80}
+      - JMS_KEY_ID=${JMS_KEY_ID:-}
+      - JMS_SECRET_FILE=${JMS_SECRET_FILE:-/app/secrets/jms_secret.key}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - kiosk_db_data:/app/data
+      - ./secrets:/app/secrets:ro
+
+  frontend:
+    image: ghcr.io/larentimatias7-oss/jumpsrv/pam-kiosk-frontend:latest
+    container_name: kiosk-manager-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    extra_hosts:
+      - "backend:host-gateway"
+    depends_on:
+      - backend
+
+volumes:
+  kiosk_db_data:

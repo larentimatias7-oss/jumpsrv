@@ -35,6 +35,9 @@ class KioskUpdateRequest(BaseModel):
     target_url: Optional[str] = None
 
 
+DEFAULT_KIOSK_IMAGE = os.getenv("KIOSK_DOCKER_IMAGE", "ghcr.io/larentimatias7-oss/jumpsrv/pam-web-kiosk:latest")
+
+
 class KioskProvisioner:
     """Orchestrates safe, non-destructive provisioning between Docker Rootless and JumpServer."""
 
@@ -45,7 +48,7 @@ class KioskProvisioner:
         jms_ops: Optional[JumpServerOperations] = None,
         host_ip: str = "192.168.1.220",
         port_range: tuple[int, int] = (33891, 33920),
-        image_tag: str = "pam-web-kiosk:v1",
+        image_tag: str = DEFAULT_KIOSK_IMAGE,
     ):
         self.db_factory = db_session_factory or init_db()
         self.docker = docker_runtime or DockerRuntime()
@@ -53,7 +56,7 @@ class KioskProvisioner:
         self.host_ip = os.environ.get("KIOSK_HOST_IP", host_ip)
         self.port_min = int(os.environ.get("KIOSK_PORT_RANGE_START", port_range[0]))
         self.port_max = int(os.environ.get("KIOSK_PORT_RANGE_END", port_range[1]))
-        self.image_tag = os.environ.get("KIOSK_IMAGE_TAG", image_tag)
+        self.image_tag = os.environ.get("KIOSK_DOCKER_IMAGE", os.environ.get("KIOSK_IMAGE_TAG", image_tag))
 
     def _generate_password(self, length: int = 32) -> str:
         alphabet = string.ascii_letters + string.digits
