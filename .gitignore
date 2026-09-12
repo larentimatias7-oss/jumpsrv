@@ -10,10 +10,14 @@ env/
 venv/
 *.sqlite3
 *.db
+*.db-shm
+*.db-wal
 *.secret
 *.env
 dist/
 node_modules/
+data/
 /data/
 /backup/
 /logs/
+

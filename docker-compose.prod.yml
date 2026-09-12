@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     image: ghcr.io/larentimatias7-oss/jumpsrv/pam-kiosk-backend:latest
