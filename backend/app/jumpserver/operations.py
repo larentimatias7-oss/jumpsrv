@@ -42,7 +42,11 @@ class JumpServerOperations:
             "name": name,
             "address": ip,
             "platform": platform_id,
-            "protocols": [{"name": "rdp", "port": port}],
+            "protocols": [{
+                "name": "rdp",
+                "port": port,
+                "setting": {"security": "any", "ignore_cert": True, "console": False}
+            }],
             "is_active": True,
             "comment": comment,
         }

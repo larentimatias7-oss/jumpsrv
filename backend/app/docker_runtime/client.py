@@ -93,11 +93,12 @@ class DockerRuntime:
         except NotFound:
             pass
 
-        ports = {
-            "3389/tcp": (host_ip, host_port)
-        }
+        ports = {}
+        if host_port > 0:
+            # Container internal exposure or isolated bridge
+            pass
         volumes = {
-            volume_name: {"bind": "/home/kiosk", "mode": "rw"}
+            volume_name: {"bind": "/home/kiosk/.config/chromium", "mode": "rw"}
         }
         environment = {
             "TARGET_URL": target_url,
@@ -111,15 +112,61 @@ class DockerRuntime:
             image=image,
             name=container_name,
             detach=True,
-            restart_policy={"Name": "unless-stopped"},
+            restart_policy={"Name": "no"},
             shm_size="256m",
-            mem_limit="1g",
-            ports=ports,
+            mem_limit="768m",
+            nano_cpus=1000000000,
             volumes=volumes,
             environment=environment,
             labels=labels,
         )
         return container.id
+
+    def ensure_container_running(
+        self,
+        container_name: str,
+        image: str,
+        volume_name: str,
+        host_ip: str,
+        host_port: int,
+        target_url: str,
+        kiosk_id: str,
+        kiosk_name: str,
+        rdp_username: str = "kiosk",
+    ) -> bool:
+        try:
+            c = self.client.containers.get(container_name)
+            if c.status != "running":
+                c.start()
+            return True
+        except NotFound:
+            self.run_kiosk_container(
+                container_name=container_name,
+                image=image,
+                volume_name=volume_name,
+                host_ip=host_ip,
+                host_port=host_port,
+                target_url=target_url,
+                kiosk_id=kiosk_id,
+                kiosk_name=kiosk_name,
+                rdp_username=rdp_username,
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error ensuring container {container_name} is running: {e}")
+            return False
+
+    def stop_container(self, container_name: str) -> bool:
+        try:
+            c = self.client.containers.get(container_name)
+            if c.status == "running":
+                c.stop(timeout=5)
+            return True
+        except NotFound:
+            return True
+        except Exception as e:
+            logger.warning(f"Error stopping container {container_name}: {e}")
+            return False
 
     def stop_and_remove_container(self, container_name: str) -> bool:
         try:

@@ -134,19 +134,10 @@ class KioskProvisioner:
             vol = self.docker.create_volume(volume_name, kiosk_id)
             created_resources.append(("volume", volume_name))
 
-            # 5. Start Kiosk container
-            self.docker.run_kiosk_container(
-                container_name=container_name,
-                image=self.image_tag,
-                volume_name=volume_name,
-                host_ip=self.host_ip,
-                host_port=port,
-                target_url=target_url,
-                kiosk_id=kiosk_id,
-                kiosk_name=clean_name,
-                rdp_username=rdp_user,
-            )
-            created_resources.append(("container", container_name))
+            # 5. Register Kiosk container (stopped / on-demand)
+            # Volume vol_rdp_<asset_id> is already created above and mounted to /home/kiosk/.config/chromium
+            # Container remains stopped until Dispatcher receives first connection
+            pass
 
             # 6. JumpServer: Register RDP Asset
             jms_asset = self.jms.create_rdp_asset(

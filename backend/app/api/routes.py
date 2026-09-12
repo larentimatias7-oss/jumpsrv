@@ -14,9 +14,14 @@ def list_kiosks():
 
 
 @router.post("/kiosks", status_code=status.HTTP_201_CREATED)
-def create_kiosk(req: KioskCreateRequest):
+async def create_kiosk(req: KioskCreateRequest):
     try:
         res = provisioner.provision(req)
+        # Register new port with dispatcher
+        from ..main import dispatcher
+        import os
+        host_ip = os.environ.get("KIOSK_HOST_IP", "192.168.1.220")
+        await dispatcher.start_listening_for_kiosk(res["id"], host_ip, res["rdp_port"])
         return res
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
@@ -33,8 +38,19 @@ def restart_kiosk(kiosk_id: str):
 
 
 @router.delete("/kiosks/{kiosk_id}")
-def delete_kiosk(kiosk_id: str):
+async def delete_kiosk(kiosk_id: str):
+    # Retrieve port before deprovisioning
+    from ..models.database import KioskModel
+    with provisioner.db_factory() as session:
+        k = session.query(KioskModel).get(kiosk_id)
+        port = k.rdp_port if k else None
+
     success = provisioner.deprovision(kiosk_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kiosk not found")
+
+    if port:
+        from ..main import dispatcher
+        await dispatcher.stop_listening(port)
+
     return {"status": "deleted", "kiosk_id": kiosk_id}

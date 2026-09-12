@@ -1,0 +1,21 @@
+{
+  "URLBlocklist": [
+    "chrome://*",
+    "chrome-extension://*",
+    "edge://*",
+    "about:blank",
+    "file://*"
+  ],
+  "URLAllowlist": [
+    "http://*",
+    "https://*"
+  ],
+  "PasswordManagerEnabled": true,
+  "PasswordSharingEnabled": false,
+  "DeveloperToolsAvailability": 2,
+  "DisablePrint": true,
+  "DefaultDownloadDirectory": "/dev/null",
+  "DownloadRestrictions": 3,
+  "ShowHomeButton": false,
+  "BookmarkBarEnabled": false
+}
