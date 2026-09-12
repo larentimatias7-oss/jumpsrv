@@ -29,6 +29,12 @@ class KioskCreateRequest(BaseModel):
     user_group_ids: Optional[List[str]] = None
 
 
+class KioskUpdateRequest(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=50)
+    device_type: Optional[str] = None
+    target_url: Optional[str] = None
+
+
 class KioskProvisioner:
     """Orchestrates safe, non-destructive provisioning between Docker Rootless and JumpServer."""
 
@@ -79,6 +85,8 @@ class KioskProvisioner:
                     "target_ip": k.target_ip,
                     "rdp_port": k.rdp_port,
                     "rdp_username": k.rdp_username,
+                    "jms_asset_id": k.jms_asset_id,
+                    "jms_account_id": k.jms_account_id,
                     "status": k.status,
                     "container_status": c_status["status"],
                     "container_health": c_status["health"],
@@ -251,3 +259,91 @@ class KioskProvisioner:
             if not k:
                 return False
             return self.docker.restart_container(k.container_name)
+
+    def update(self, kiosk_id: str, req: KioskUpdateRequest) -> Dict[str, Any]:
+        with self.db_factory() as session:
+            k = session.query(KioskModel).get(kiosk_id)
+            if not k:
+                raise ValueError("Kiosk not found")
+
+            if req.name and req.name.strip():
+                new_name = req.name.strip().upper()
+                if new_name != k.name:
+                    dup = session.query(KioskModel).filter(KioskModel.name == new_name, KioskModel.id != kiosk_id).first()
+                    if dup:
+                        raise ValueError(f"Kiosk with name {new_name} already exists")
+                    k.name = new_name
+                    if k.jms_asset_id:
+                        try:
+                            self.jms.client.put(f"/api/v1/assets/assets/{k.jms_asset_id}/", {"name": new_name})
+                        except Exception as e:
+                            logger.warning(f"Could not rename JumpServer asset: {e}")
+
+            if req.device_type:
+                k.device_type = req.device_type
+
+            if req.target_url and req.target_url.strip():
+                k.target_url = req.target_url.strip()
+                try:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(k.target_url)
+                    if parsed.hostname:
+                        k.target_ip = parsed.hostname
+                except Exception:
+                    pass
+
+            session.commit()
+
+            # Remove existing container so next connection uses updated URL
+            self.docker.stop_and_remove_container(k.container_name)
+
+            return {
+                "id": k.id,
+                "name": k.name,
+                "device_type": k.device_type,
+                "target_url": k.target_url,
+                "target_ip": k.target_ip,
+                "rdp_port": k.rdp_port,
+                "status": k.status,
+            }
+
+    def test_connectivity(self, kiosk_id: str) -> Dict[str, Any]:
+        with self.db_factory() as session:
+            k = session.query(KioskModel).get(kiosk_id)
+            if not k:
+                raise ValueError("Kiosk not found")
+            target_url = k.target_url
+
+        import urllib.request
+        start = time.time()
+        try:
+            req = urllib.request.Request(
+                target_url,
+                headers={"User-Agent": "Mozilla/5.0 (JumpServer-Kiosk-Probe)"}
+            )
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                latency = round((time.time() - start) * 1000, 1)
+                return {
+                    "ok": True,
+                    "status_code": resp.status,
+                    "latency_ms": latency,
+                    "url": target_url,
+                }
+        except Exception as e:
+            latency = round((time.time() - start) * 1000, 1)
+            return {
+                "ok": False,
+                "error": str(e),
+                "latency_ms": latency,
+                "url": target_url,
+            }
+
+    def clear_cache(self, kiosk_id: str) -> bool:
+        with self.db_factory() as session:
+            k = session.query(KioskModel).get(kiosk_id)
+            if not k:
+                return False
+            self.docker.stop_and_remove_container(k.container_name)
+            self.docker.remove_volume(k.volume_name)
+            self.docker.create_volume(k.volume_name, k.id)
+            return True

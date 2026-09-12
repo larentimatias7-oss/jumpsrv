@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from ..auth.basic_auth import verify_credentials
-from ..provisioning.provisioner import KioskProvisioner, KioskCreateRequest
+from ..provisioning.provisioner import KioskProvisioner, KioskCreateRequest, KioskUpdateRequest
 
 router = APIRouter(dependencies=[Depends(verify_credentials)])
 provisioner = KioskProvisioner()
@@ -35,6 +35,34 @@ def restart_kiosk(kiosk_id: str):
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kiosk not found or failed to restart")
     return {"status": "restarted", "kiosk_id": kiosk_id}
+
+
+@router.put("/kiosks/{kiosk_id}")
+def update_kiosk(kiosk_id: str, req: KioskUpdateRequest):
+    try:
+        return provisioner.update(kiosk_id, req)
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/kiosks/{kiosk_id}/test-url")
+def test_kiosk_url(kiosk_id: str):
+    try:
+        return provisioner.test_connectivity(kiosk_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/kiosks/{kiosk_id}/clear-cache")
+def clear_kiosk_cache(kiosk_id: str):
+    success = provisioner.clear_cache(kiosk_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kiosk not found")
+    return {"status": "cache_cleared", "kiosk_id": kiosk_id}
 
 
 @router.delete("/kiosks/{kiosk_id}")
