@@ -33,8 +33,9 @@ app.include_router(api_router, prefix="/api")
 
 @app.on_event("startup")
 async def startup_event():
+    from .provisioning.provisioner import detect_host_ip
     db_factory = init_db()
-    host_ip = os.environ.get("KIOSK_HOST_IP", "192.168.1.220")
+    host_ip = detect_host_ip()
     with db_factory() as session:
         kiosks = session.query(KioskModel).all()
         for k in kiosks:

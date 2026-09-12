@@ -38,6 +38,21 @@ class KioskUpdateRequest(BaseModel):
 DEFAULT_KIOSK_IMAGE = os.getenv("KIOSK_DOCKER_IMAGE", "ghcr.io/larentimatias7-oss/jumpsrv/pam-web-kiosk:latest")
 
 
+def detect_host_ip(fallback: str = "127.0.0.1") -> str:
+    env_ip = os.environ.get("KIOSK_HOST_IP", "").strip()
+    if env_ip and env_ip not in ("127.0.0.1", "localhost", "0.0.0.0"):
+        return env_ip
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            detected = s.getsockname()[0]
+            if detected:
+                return detected
+    except Exception:
+        pass
+    return env_ip or fallback
+
+
 class KioskProvisioner:
     """Orchestrates safe, non-destructive provisioning between Docker Rootless and JumpServer."""
 
@@ -46,14 +61,14 @@ class KioskProvisioner:
         db_session_factory=None,
         docker_runtime: Optional[DockerRuntime] = None,
         jms_ops: Optional[JumpServerOperations] = None,
-        host_ip: str = "192.168.1.220",
+        host_ip: str = "127.0.0.1",
         port_range: tuple[int, int] = (33891, 33920),
         image_tag: str = DEFAULT_KIOSK_IMAGE,
     ):
         self.db_factory = db_session_factory or init_db()
         self.docker = docker_runtime or DockerRuntime()
         self.jms = jms_ops or JumpServerOperations(JumpServerClient(get_jms_settings()))
-        self.host_ip = os.environ.get("KIOSK_HOST_IP", host_ip)
+        self.host_ip = detect_host_ip(host_ip)
         self.port_min = int(os.environ.get("KIOSK_PORT_RANGE_START", port_range[0]))
         self.port_max = int(os.environ.get("KIOSK_PORT_RANGE_END", port_range[1]))
         self.image_tag = os.environ.get("KIOSK_DOCKER_IMAGE", os.environ.get("KIOSK_IMAGE_TAG", image_tag))

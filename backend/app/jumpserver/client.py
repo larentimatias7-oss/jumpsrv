@@ -30,11 +30,20 @@ class JumpServerClient:
         self._verify = str(self.config.ca_bundle) if self.config.ca_bundle else self.config.verify_ssl
 
     def _headers(self, method: str, path: str) -> dict[str, str]:
+        key_id = self.config.get_key_id()
+        secret = self.config.load_secret()
+
+        if not key_id or not secret:
+            raise JumpServerAuthError(
+                "JumpServer AccessKey is not configured (missing JMS_KEY_ID / JMS_SECRET_KEY). "
+                "Please configure credentials in /opt/jumpsrv/.env or ensure /var/run/docker.sock is mounted."
+            )
+
         headers = signed_headers(
             method=method,
             path=path,
-            key_id=self.config.key_id,
-            secret=self._secret,
+            key_id=key_id,
+            secret=secret,
             org_id=self.config.org_id,
         )
         headers["X-JMS-ORG"] = self.config.org_id

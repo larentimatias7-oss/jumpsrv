@@ -97,5 +97,35 @@ def delete_kiosk(kiosk_id: str = typer.Argument(..., help="Kiosk ID")):
         sys.exit(1)
 
 
+@app.command("check-jms")
+def check_jumpserver():
+    """Verify JumpServer API connectivity and credentials."""
+    from app.jumpserver.client import JumpServerClient
+    from app.jumpserver.config import get_jms_settings
+    from app.jumpserver.operations import JumpServerOperations
+
+    settings = get_jms_settings()
+    console.print(f"[bold]Checking JumpServer configuration:[/bold]")
+    console.print(f"  Base URL: [cyan]{settings.base_url}[/cyan]")
+    console.print(f"  Org ID:   [cyan]{settings.org_id}[/cyan]")
+    key_id = settings.get_key_id()
+    secret = settings.load_secret()
+    console.print(f"  Key ID:   [cyan]{key_id or '[red]NOT SET[/red]'}[/cyan]")
+    masked_sec = ('***' + secret[-4:]) if len(secret) > 4 else ('[red]NOT SET[/red]' if not secret else '***')
+    console.print(f"  Secret:   [cyan]{masked_sec}[/cyan]")
+
+    client = JumpServerClient(settings)
+    ops = JumpServerOperations(client)
+    try:
+        nodes = ops.list_nodes()
+        console.print(f"[bold green]✓ Successfully connected to JumpServer API! Found {len(nodes)} nodes.[/bold green]")
+        default_id = ops.get_default_node_id()
+        console.print(f"  Default Node UUID: [green]{default_id}[/green]")
+    except Exception as e:
+        console.print(f"[bold red]✗ JumpServer connection test failed: {e}[/bold red]")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     app()
+

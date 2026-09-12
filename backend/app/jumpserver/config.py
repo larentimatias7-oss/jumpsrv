@@ -16,10 +16,19 @@ class JumpServerSettings(BaseSettings):
         extra="ignore",
     )
 
-    base_url: str = Field(default="https://192.168.1.220", description="Base URL of JumpServer")
-    key_id: str = Field(default="", description="Access Key ID")
+    base_url: str = Field(
+        default_factory=lambda: os.getenv("JMS_BASE_URL", os.getenv("JUMPSERVER_BASE_URL", "http://127.0.0.1:80")),
+        description="Base URL of JumpServer",
+    )
+    key_id: str = Field(
+        default_factory=lambda: os.getenv("JMS_KEY_ID", os.getenv("JUMPSERVER_KEY_ID", "")),
+        description="Access Key ID",
+    )
     secret_file: Path | None = Field(default=None, description="Path to 600 file with secret")
-    secret_value: str | None = Field(default=None, description="Direct secret in memory or test env")
+    secret_value: str | None = Field(
+        default_factory=lambda: os.getenv("JMS_SECRET_KEY", os.getenv("JMS_SECRET", os.getenv("JMS_SECRET_VALUE", os.getenv("JUMPSERVER_SECRET", "")))),
+        description="Direct secret in memory or test env",
+    )
     org_id: str = Field(
         default_factory=lambda: os.getenv("JUMPSERVER_ORG_ID", os.getenv("JMS_ORG_ID", "00000000-0000-0000-0000-000000000002")),
         description="Default org UUID in JumpServer 4.x",
@@ -52,11 +61,34 @@ class JumpServerSettings(BaseSettings):
             pass
         return v
 
+    def get_key_id(self) -> str:
+        """Return configured AccessKey ID, falling back to cache or Docker autodiscovery."""
+        if self.key_id and self.key_id.strip():
+            return self.key_id.strip()
+        from .autodiscovery import get_or_discover_credentials
+        k_id, sec = get_or_discover_credentials(self.key_id, self.secret_value)
+        if k_id:
+            self.key_id = k_id
+            if sec and not self.secret_value:
+                self.secret_value = sec
+            return k_id
+        return ""
+
     def load_secret(self) -> str:
-        if self.secret_value:
+        """Return secret from value, file, cache, or Docker autodiscovery."""
+        if self.secret_value and self.secret_value.strip():
             return self.secret_value.strip()
         if self.secret_file and self.secret_file.exists():
-            return self.secret_file.read_text(encoding="utf-8").strip()
+            content = self.secret_file.read_text(encoding="utf-8").strip()
+            if content:
+                return content
+        from .autodiscovery import get_or_discover_credentials
+        k_id, sec = get_or_discover_credentials(self.key_id, self.secret_value)
+        if sec:
+            self.secret_value = sec
+            if k_id and not self.key_id:
+                self.key_id = k_id
+            return sec
         return ""
 
 

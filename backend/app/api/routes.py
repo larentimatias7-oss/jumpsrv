@@ -19,8 +19,8 @@ async def create_kiosk(req: KioskCreateRequest):
         res = provisioner.provision(req)
         # Register new port with dispatcher
         from ..main import dispatcher
-        import os
-        host_ip = os.environ.get("KIOSK_HOST_IP", "192.168.1.220")
+        from ..provisioning.provisioner import detect_host_ip
+        host_ip = detect_host_ip()
         await dispatcher.start_listening_for_kiosk(res["id"], host_ip, res["rdp_port"])
         return res
     except ValueError as ve:

@@ -133,3 +133,35 @@ docker compose pull && \
 docker compose up -d
 ```
 
+### Autenticación y Credenciales JumpServer
+
+1. **Auto-descubrimiento Automático (Cero Configuración):**
+   - El contenedor `backend` monta `/var/run/docker.sock` y auto-detecta la instancia local de `jms_core`.
+   - Genera o recupera automáticamente el `AccessKey` del superusuario de JumpServer y lo persiste en `/app/data/jms_credentials.json`.
+   - Auto-detecta la IP de la máquina host para registrar los activos RDP en JumpServer sin necesidad de configurar IPs estáticas.
+
+2. **Configuración Manual (Opcional o para JumpServer en host remoto):**
+   Si JumpServer está en otro servidor o se prefieren credenciales fijas, crear `/opt/jumpsrv/.env`:
+   ```bash
+   # Obtener o generar clave en JumpServer:
+   docker exec -i jms_core /opt/py3/bin/python /opt/jumpserver/apps/manage.py shell -c "
+   from authentication.models import AccessKey
+   from users.models import User
+   u = User.objects.filter(is_superuser=True).first()
+   ak = AccessKey.objects.filter(user=u).first() or AccessKey.objects.create(user=u)
+   print(f'JMS_KEY_ID={ak.id}\nJMS_SECRET_KEY={ak.secret}')
+   "
+   ```
+   Y guardarlo en `/opt/jumpsrv/.env`:
+   ```dotenv
+   JMS_BASE_URL=http://127.0.0.1:80
+   JMS_KEY_ID=tu-access-key-uuid
+   JMS_SECRET_KEY=tu-access-key-secret
+   KIOSK_HOST_IP=192.168.1.120
+   ```
+   Luego reiniciar el stack:
+   ```bash
+   docker compose up -d
+   ```
+
+
