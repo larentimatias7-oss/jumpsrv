@@ -130,10 +130,10 @@ class KioskDispatcher:
             self.active_connections[port] -= 1
             return
 
-        # Poll container port 3389 with short backoff (every 100ms, timeout 10s for cold starts)
+        # Poll container port 3389 with short backoff (every 100ms, timeout 30s for cold starts)
         logger.info(f"Probing XRDP on {container_ip}:3389 for {clean_name}...")
         target_reader, target_writer = None, None
-        for attempt in range(100):
+        for attempt in range(300):
             try:
                 target_reader, target_writer = await asyncio.open_connection(container_ip, 3389)
                 logger.info(f"[XRDP port open and verified] Connected on attempt {attempt+1}")

@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xserver-xorg-core \
     openbox \
     chromium \
+    dbus \
     dbus-x11 \
     supervisor \
     curl \
