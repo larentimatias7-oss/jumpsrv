@@ -300,6 +300,13 @@ onMounted(() => {
       </div>
       
       <div class="actions">
+        <a href="/guide.html" target="_blank" class="btn btn-ghost" title="Abrir Guía de Usuario y Manual">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+          Guía de Usuario
+        </a>
         <a href="/luna/" target="_blank" class="btn btn-ghost" title="Abrir JumpServer Luna">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
