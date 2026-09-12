@@ -4,6 +4,14 @@ set -e
 # Extract RDP user from environment or default
 RDP_USER="${RDP_USERNAME:-kiosk}"
 
+# Export TARGET_URL to /etc/environment so PAM/xrdp sessions inherit it
+if [ -n "$TARGET_URL" ]; then
+    echo "TARGET_URL=\"$TARGET_URL\"" >> /etc/environment
+fi
+if [ -n "$KIOSK_NAME" ]; then
+    echo "KIOSK_NAME=\"$KIOSK_NAME\"" >> /etc/environment
+fi
+
 # Ensure default kiosk user exists
 if ! id "kiosk" &>/dev/null; then
     useradd -m -s /bin/bash "kiosk"

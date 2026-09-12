@@ -3,7 +3,6 @@
     "chrome://*",
     "chrome-extension://*",
     "edge://*",
-    "about:blank",
     "file://*"
   ],
   "URLAllowlist": [

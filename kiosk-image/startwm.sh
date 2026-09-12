@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Read TARGET_URL from environment or /etc/environment
+if [ -z "$TARGET_URL" ] && [ -f /etc/environment ]; then
+    # shellcheck disable=SC1091
+    source /etc/environment 2>/dev/null || true
+fi
 TARGET_URL="${TARGET_URL:-about:blank}"
 USER_DATA_DIR="${HOME:-/home/kiosk}/.config/chromium"
 mkdir -p "$USER_DATA_DIR"
