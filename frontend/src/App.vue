@@ -11,7 +11,6 @@ const showSettingsModal = ref(false)
 const showActionsDropdown = ref(false)
 const showUserDropdown = ref(false)
 const showStatsPanel = ref(false)
-const treeCollapsed = ref(false)
 const notification = ref(null)
 
 // Search & Filtering
@@ -297,15 +296,6 @@ const ramSavedGb = computed(() => {
   return ((standbyCount.value * 768) / 1024).toFixed(1)
 })
 
-const typeCounts = computed(() => {
-  const counts = {}
-  deviceTypes.forEach(d => { counts[d.id] = 0 })
-  kiosks.value.forEach(k => {
-    if (counts[k.device_type] !== undefined) counts[k.device_type]++
-  })
-  return counts
-})
-
 const filteredKiosks = computed(() => {
   return kiosks.value.filter(k => {
     // Text search
@@ -332,11 +322,6 @@ const filteredKiosks = computed(() => {
     return matchSearch && matchType && matchStatus && matchCategory
   })
 })
-
-const getTypeLabel = (typeId) => {
-  const match = deviceTypes.find(d => d.id === typeId)
-  return match ? `${match.icon} ${match.label}` : typeId
-}
 
 // Keyboard shortcut (Ctrl+K or /)
 const handleKeydown = (e) => {
@@ -378,7 +363,7 @@ onUnmounted(() => {
 
 <template>
   <div class="jms-app-container">
-    <!-- TOP NAVBAR (JumpServer Signature Teal Bar) -->
+    <!-- TOP NAVBAR (JumpServer Signature Teal Bar #148F76) -->
     <header class="jms-navbar">
       <div class="jms-navbar-left">
         <!-- JumpServer + Milicic Brand Group -->
@@ -582,7 +567,10 @@ onUnmounted(() => {
             <span>Consola Luna PAM</span>
           </a>
 
-          <div class="nav-item" @click="selectedCategoryFilter = 'network'; activeSidebarItem = 'network'">
+          <div 
+            :class="['nav-item', { active: selectedCategoryFilter === 'network' }]" 
+            @click="selectedCategoryFilter = selectedCategoryFilter === 'network' ? 'all' : 'network'; activeSidebarItem = 'network'"
+          >
             <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"/>
               <line x1="2" y1="12" x2="22" y2="12"/>
@@ -617,7 +605,7 @@ onUnmounted(() => {
         <div class="jms-content-header">
           <div class="content-title-row">
             <div class="title-left">
-              <button class="back-btn" title="Volver" @click="selectedTypeFilter = 'all'; selectedStatusFilter = 'all'">
+              <button class="back-btn" title="Restablecer filtros" @click="selectedTypeFilter = 'all'; selectedStatusFilter = 'all'; selectedCategoryFilter = 'all'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="19" y1="12" x2="5" y2="12"/>
                   <polyline points="12 19 5 12 12 5"/>
@@ -685,376 +673,323 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- SPLIT VIEW: Left Tree Filter + Right Content Area (JumpServer Signature Layout) -->
-        <div class="jms-split-layout">
-          <!-- LEFT DEVICE TREE FILTER -->
-          <div :class="['jms-tree-panel', { collapsed: treeCollapsed }]">
-            <div class="tree-tabs-header">
-              <div class="tree-tab active">Árbol de activos</div>
-              <div class="tree-tab" @click="selectedTypeFilter = 'all'">Árbol de tipos</div>
-              <div class="tree-actions">
-                <button class="icon-tiny" title="Refrescar árbol" @click="fetchKiosks">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                  </svg>
+        <!-- MAIN TABLE PANEL (Full Width - Tree panel removed as requested) -->
+        <div class="jms-table-panel">
+          <!-- JUMPSERVER QUICK FILTER ROWS (ESTADO, TIPO) -->
+          <div class="jms-quick-filters">
+            <div class="filter-row">
+              <span class="filter-row-label">ESTADO DE SESIÓN</span>
+              <div class="filter-links">
+                <button 
+                  :class="['filter-link', { active: selectedStatusFilter === 'all' }]"
+                  @click="selectedStatusFilter = 'all'"
+                >
+                  Todo
+                </button>
+                <span class="filter-sep">|</span>
+                <button 
+                  :class="['filter-link', { active: selectedStatusFilter === 'running' }]"
+                  @click="selectedStatusFilter = 'running'"
+                >
+                  Activos en sesión ({{ activeSessionsCount }})
+                </button>
+                <span class="filter-sep">|</span>
+                <button 
+                  :class="['filter-link', { active: selectedStatusFilter === 'idle' }]"
+                  @click="selectedStatusFilter = 'idle'"
+                >
+                  En espera (0% RAM) ({{ standbyCount }})
                 </button>
               </div>
             </div>
 
-            <div class="tree-content">
-              <!-- Root DEFAULT Node -->
-              <div 
-                :class="['tree-node-item root', { active: selectedTypeFilter === 'all' }]"
-                @click="selectedTypeFilter = 'all'"
-              >
-                <span class="tree-arrow">›</span>
-                <span class="tree-icon">📁</span>
-                <span class="tree-label">DEFAULT ({{ kiosks.length }})</span>
-              </div>
-
-              <!-- Children Nodes by Device Type -->
-              <div class="tree-children">
-                <div 
-                  v-for="d in deviceTypes" 
-                  :key="d.id"
-                  :class="['tree-node-item', { active: selectedTypeFilter === d.id }]"
-                  @click="selectedTypeFilter = d.id"
+            <div class="filter-row">
+              <span class="filter-row-label">TIPO DE DISPOSITIVO</span>
+              <div class="filter-links">
+                <button 
+                  :class="['filter-link', { active: selectedCategoryFilter === 'all' && selectedTypeFilter === 'all' }]"
+                  @click="selectedCategoryFilter = 'all'; selectedTypeFilter = 'all'"
                 >
-                  <span class="tree-icon">{{ d.icon }}</span>
-                  <span class="tree-label">{{ d.label }}</span>
-                  <span class="tree-count">{{ typeCounts[d.id] || 0 }}</span>
-                </div>
+                  Todo
+                </button>
+                <span class="filter-sep">|</span>
+                <button 
+                  :class="['filter-link', { active: selectedCategoryFilter === 'web' }]"
+                  @click="selectedCategoryFilter = selectedCategoryFilter === 'web' ? 'all' : 'web'; selectedTypeFilter = 'all'"
+                >
+                  Web Consoles
+                </button>
+                <span class="filter-sep">|</span>
+                <button 
+                  :class="['filter-link', { active: selectedCategoryFilter === 'network' }]"
+                  @click="selectedCategoryFilter = selectedCategoryFilter === 'network' ? 'all' : 'network'; selectedTypeFilter = 'all'"
+                >
+                  Equipos de red
+                </button>
+                <span class="filter-sep">|</span>
+                <button 
+                  :class="['filter-link', { active: selectedCategoryFilter === 'monitoring' }]"
+                  @click="selectedCategoryFilter = selectedCategoryFilter === 'monitoring' ? 'all' : 'monitoring'; selectedTypeFilter = 'all'"
+                >
+                  Monitorización & CCTV
+                </button>
+                <span class="filter-sep">|</span>
+                <button 
+                  :class="['filter-link', { active: selectedCategoryFilter === 'virtualization' }]"
+                  @click="selectedCategoryFilter = selectedCategoryFilter === 'virtualization' ? 'all' : 'virtualization'; selectedTypeFilter = 'all'"
+                >
+                  Virtualización & Servidores
+                </button>
               </div>
             </div>
-
-            <!-- Collapse Toggle Button -->
-            <button 
-              class="tree-collapse-btn" 
-              :title="treeCollapsed ? 'Expandir árbol' : 'Colapsar árbol'" 
-              @click="treeCollapsed = !treeCollapsed"
-            >
-              {{ treeCollapsed ? '›' : '‹' }}
-            </button>
           </div>
 
-          <!-- RIGHT MAIN TABLE & CONTROLS -->
-          <div class="jms-table-panel">
-            <!-- JUMPSERVER QUICK FILTER ROWS (ÚLTIMOS 7 DÍAS, ESTADO, TIPO) -->
-            <div class="jms-quick-filters">
-              <div class="filter-row">
-                <span class="filter-row-label">ESTADO DE SESIÓN</span>
-                <div class="filter-links">
-                  <button 
-                    :class="['filter-link', { active: selectedStatusFilter === 'all' }]"
-                    @click="selectedStatusFilter = 'all'"
-                  >
-                    Todo
-                  </button>
-                  <span class="filter-sep">|</span>
-                  <button 
-                    :class="['filter-link', { active: selectedStatusFilter === 'running' }]"
-                    @click="selectedStatusFilter = 'running'"
-                  >
-                    Activos en sesión ({{ activeSessionsCount }})
-                  </button>
-                  <span class="filter-sep">|</span>
-                  <button 
-                    :class="['filter-link', { active: selectedStatusFilter === 'idle' }]"
-                    @click="selectedStatusFilter = 'idle'"
-                  >
-                    En espera (0% RAM) ({{ standbyCount }})
-                  </button>
-                </div>
-              </div>
+          <!-- ACTION TOOLBAR (JumpServer Signature Teal Button + Tools) -->
+          <div class="jms-toolbar">
+            <div class="toolbar-left">
+              <!-- + Crear Button -->
+              <button class="jms-btn jms-btn-primary" @click="showCreateModal = true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Crear
+              </button>
 
-              <div class="filter-row">
-                <span class="filter-row-label">TIPO DE DISPOSITIVO</span>
-                <div class="filter-links">
-                  <button 
-                    :class="['filter-link', { active: selectedCategoryFilter === 'all' }]"
-                    @click="selectedCategoryFilter = 'all'"
-                  >
-                    Todo
-                  </button>
-                  <span class="filter-sep">|</span>
-                  <button 
-                    :class="['filter-link', { active: selectedCategoryFilter === 'web' }]"
-                    @click="selectedCategoryFilter = 'web'"
-                  >
-                    Web Consoles
-                  </button>
-                  <span class="filter-sep">|</span>
-                  <button 
-                    :class="['filter-link', { active: selectedCategoryFilter === 'network' }]"
-                    @click="selectedCategoryFilter = 'network'"
-                  >
-                    Equipos de red
-                  </button>
-                  <span class="filter-sep">|</span>
-                  <button 
-                    :class="['filter-link', { active: selectedCategoryFilter === 'monitoring' }]"
-                    @click="selectedCategoryFilter = 'monitoring'"
-                  >
-                    Monitorización & CCTV
-                  </button>
-                  <span class="filter-sep">|</span>
-                  <button 
-                    :class="['filter-link', { active: selectedCategoryFilter === 'virtualization' }]"
-                    @click="selectedCategoryFilter = 'virtualization'"
-                  >
-                    Virtualización & Servidores
-                  </button>
-                </div>
-              </div>
-            </div>
+              <!-- Refrescar Button -->
+              <button class="jms-btn jms-btn-default" @click="fetchKiosks" :disabled="loading">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spinning': loading }">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                Refrescar
+              </button>
 
-            <!-- ACTION TOOLBAR (JumpServer Signature Teal Button + Tools) -->
-            <div class="jms-toolbar">
-              <div class="toolbar-left">
-                <!-- + Crear Button -->
-                <button class="jms-btn jms-btn-primary" @click="showCreateModal = true">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"/>
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  Crear
-                </button>
-
-                <!-- Refrescar Button -->
-                <button class="jms-btn jms-btn-default" @click="fetchKiosks" :disabled="loading">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spinning': loading }">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                  </svg>
-                  Refrescar
-                </button>
-
-                <!-- Más acciones ▾ Dropdown -->
-                <div class="dropdown-wrapper">
-                  <button class="jms-btn jms-btn-default" @click="showActionsDropdown = !showActionsDropdown">
-                    Más acciones
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="6 9 12 15 18 9"/>
-                    </svg>
-                  </button>
-
-                  <div v-if="showActionsDropdown" class="toolbar-dropdown-menu" @click.stop>
-                    <div class="dropdown-menu-item" @click="testAllConnectivity">
-                      ⚡ Probar conectividad de todas las URLs
-                    </div>
-                    <a href="/luna/" target="_blank" class="dropdown-menu-item">
-                      🖥️ Abrir consola JumpServer Luna
-                    </a>
-                    <div class="dropdown-menu-item" @click="showStatsPanel = !showStatsPanel; showActionsDropdown = false">
-                      📊 Alternar métricas de ahorro
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Toolbar Right: Search Box + Tools -->
-              <div class="toolbar-right">
-                <div class="table-search-box">
-                  <svg class="search-tag-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                    <line x1="7" y1="7" x2="7.01" y2="7"/>
-                  </svg>
-                  <input 
-                    v-model="searchQuery" 
-                    placeholder="Ingresa / para buscar"
-                    class="toolbar-search-input"
-                  />
-                  <button v-if="searchQuery" class="clear-btn" @click="searchQuery = ''">×</button>
-                </div>
-
-                <div class="toolbar-tool-icons">
-                  <button class="icon-tool-btn" title="Filtrar" @click="selectedStatusFilter = selectedStatusFilter === 'all' ? 'running' : 'all'">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                    </svg>
-                  </button>
-
-                  <button class="icon-tool-btn" title="Ajustes" @click="showSettingsModal = true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="3"/>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- JUMPSERVER ASSETS TABLE -->
-            <div class="table-scroll-container">
-              <table class="jms-data-table">
-                <thead>
-                  <tr>
-                    <th style="width: 40px; text-align: center;">
-                      <input type="checkbox" />
-                    </th>
-                    <th>Activos</th>
-                    <th>Plataforma</th>
-                    <th>Conexión</th>
-                    <th>Estado Contenedor</th>
-                    <th>Latencia / URL</th>
-                    <th style="text-align: right; width: 220px;">Operaciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-if="filteredKiosks.length === 0 && !loading">
-                    <td colspan="7" class="empty-cell">
-                      <div class="empty-state-box">
-                        <span class="empty-icon">🔍</span>
-                        <p class="empty-text">No se encontraron quioscos para los filtros seleccionados.</p>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr v-for="k in filteredKiosks" :key="k.id" class="table-row">
-                    <!-- Checkbox -->
-                    <td style="text-align: center;">
-                      <input type="checkbox" />
-                    </td>
-
-                    <!-- Activos (Name & Sub-identity) -->
-                    <td class="cell-asset">
-                      <div class="asset-info">
-                        <a href="javascript:void(0)" class="asset-name" @click="openLunaSession(k)">
-                          {{ k.name }}
-                        </a>
-                        <div class="asset-sub">
-                          <span class="rdp-user">{{ k.rdp_username }}</span>
-                          <span v-if="k.jms_asset_id" class="asset-id-tag">ID: {{ k.jms_asset_id.substring(0, 8) }}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <!-- Plataforma (Windows Icon & Badge like screenshot) -->
-                    <td class="cell-platform">
-                      <div class="platform-badge">
-                        <!-- Windows 4 Squares Icon -->
-                        <svg class="win-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.951-1.802"/>
-                        </svg>
-                        <span>Windows</span>
-                      </div>
-                    </td>
-
-                    <!-- Conexión (JumpServer Teal Monitor Icon + Port) -->
-                    <td class="cell-connection">
-                      <div class="connection-group">
-                        <svg class="jms-monitor-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                          <line x1="8" y1="21" x2="16" y2="21"/>
-                          <line x1="12" y1="17" x2="12" y2="21"/>
-                        </svg>
-                        <span class="port-chip">:{{ k.rdp_port }}</span>
-                      </div>
-                    </td>
-
-                    <!-- Estado Contenedor (Active Green Pulse or Idle Moon) -->
-                    <td class="cell-lifecycle">
-                      <div v-if="k.container_status === 'running'" class="status-pill running">
-                        <span class="pulse-indicator"></span>
-                        <span>Activo (En Sesión)</span>
-                      </div>
-                      <div v-else class="status-pill idle" title="Ahorrando 768MB RAM. Se activa automáticamente al conectar.">
-                        <span class="idle-moon">💤</span>
-                        <span>En Espera (0% RAM)</span>
-                      </div>
-                    </td>
-
-                    <!-- Latencia / URL Probe Status -->
-                    <td class="cell-url">
-                      <div class="url-info">
-                        <a :href="k.target_url" target="_blank" rel="noopener" class="url-text" :title="k.target_url">
-                          {{ k.target_url }}
-                        </a>
-                        <div class="probe-indicator">
-                          <span v-if="urlTestResults[k.id]?.testing" class="probe-tag testing">
-                            Probando...
-                          </span>
-                          <span v-else-if="urlTestResults[k.id]?.ok" class="probe-tag ok" :title="`HTTP ${urlTestResults[k.id]?.status_code}`">
-                            HTTP {{ urlTestResults[k.id]?.status_code }} ({{ urlTestResults[k.id]?.latency_ms }}ms)
-                          </span>
-                          <span v-else-if="urlTestResults[k.id]?.error" class="probe-tag err" :title="urlTestResults[k.id]?.error">
-                            Inaccesible
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <!-- Operaciones (JumpServer Action Buttons) -->
-                    <td class="cell-actions" style="text-align: right;">
-                      <div class="actions-group">
-                        <!-- Conectar en Luna (Primary Eye Button) -->
-                        <button class="action-btn action-connect" title="Abrir sesión en JumpServer Luna" @click="openLunaSession(k)">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                          </svg>
-                        </button>
-
-                        <!-- Probar Conectividad -->
-                        <button class="action-btn" title="Probar conectividad de la URL" @click="testConnectivity(k)">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                          </svg>
-                        </button>
-
-                        <!-- Editar -->
-                        <button class="action-btn" title="Editar quiosco" @click="openEditModal(k)">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                          </svg>
-                        </button>
-
-                        <!-- Limpiar Caché -->
-                        <button class="action-btn" title="Limpiar cookies y contraseñas guardadas de Chromium" @click="clearCache(k)">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
-                            <line x1="18" y1="9" x2="12" y2="15"/>
-                            <line x1="12" y1="9" x2="18" y2="15"/>
-                          </svg>
-                        </button>
-
-                        <!-- Reiniciar -->
-                        <button class="action-btn" title="Reiniciar sesión / contenedor" @click="restartKiosk(k.id, k.name)">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                          </svg>
-                        </button>
-
-                        <!-- Eliminar -->
-                        <button class="action-btn danger" title="Eliminar quiosco y activo" @click="deleteKiosk(k.id, k.name)">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- TABLE PAGINATION FOOTER (JumpServer Element Plus Style) -->
-            <div class="jms-pagination">
-              <div class="pagination-total">
-                Total {{ filteredKiosks.length }}
-              </div>
-              <div class="pagination-controls">
-                <div class="page-size-selector">
-                  <span>15/página</span>
+              <!-- Más acciones ▾ Dropdown -->
+              <div class="dropdown-wrapper">
+                <button class="jms-btn jms-btn-default" @click="showActionsDropdown = !showActionsDropdown">
+                  Más acciones
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
+                </button>
+
+                <div v-if="showActionsDropdown" class="toolbar-dropdown-menu" @click.stop>
+                  <div class="dropdown-menu-item" @click="testAllConnectivity">
+                    ⚡ Probar conectividad de todas las URLs
+                  </div>
+                  <a href="/luna/" target="_blank" class="dropdown-menu-item">
+                    🖥️ Abrir consola JumpServer Luna
+                  </a>
+                  <div class="dropdown-menu-item" @click="showStatsPanel = !showStatsPanel; showActionsDropdown = false">
+                    📊 Alternar métricas de ahorro
+                  </div>
                 </div>
-                <button class="page-btn" disabled>‹</button>
-                <button class="page-btn active">1</button>
-                <button class="page-btn" disabled>›</button>
               </div>
+            </div>
+
+            <!-- Toolbar Right: Search Box + Tools -->
+            <div class="toolbar-right">
+              <div class="table-search-box">
+                <svg class="search-tag-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                  <line x1="7" y1="7" x2="7.01" y2="7"/>
+                </svg>
+                <input 
+                  v-model="searchQuery" 
+                  placeholder="Ingresa / para buscar"
+                  class="toolbar-search-input"
+                />
+                <button v-if="searchQuery" class="clear-btn" @click="searchQuery = ''">×</button>
+              </div>
+
+              <div class="toolbar-tool-icons">
+                <button class="icon-tool-btn" title="Filtrar activos en ejecución" @click="selectedStatusFilter = selectedStatusFilter === 'all' ? 'running' : 'all'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                  </svg>
+                </button>
+
+                <button class="icon-tool-btn" title="Ajustes" @click="showSettingsModal = true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- JUMPSERVER ASSETS TABLE -->
+          <div class="table-scroll-container">
+            <table class="jms-data-table">
+              <thead>
+                <tr>
+                  <th style="width: 40px; text-align: center;">
+                    <input type="checkbox" />
+                  </th>
+                  <th>Activos</th>
+                  <th>Plataforma</th>
+                  <th>Conexión</th>
+                  <th>Estado Contenedor</th>
+                  <th>Latencia / URL</th>
+                  <th style="text-align: right; width: 220px;">Operaciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="filteredKiosks.length === 0 && !loading">
+                  <td colspan="7" class="empty-cell">
+                    <div class="empty-state-box">
+                      <span class="empty-icon">🔍</span>
+                      <p class="empty-text">No se encontraron quioscos para los filtros seleccionados.</p>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr v-for="k in filteredKiosks" :key="k.id" class="table-row">
+                  <!-- Checkbox -->
+                  <td style="text-align: center;">
+                    <input type="checkbox" />
+                  </td>
+
+                  <!-- Activos (Name & Sub-identity) -->
+                  <td class="cell-asset">
+                    <div class="asset-info">
+                      <a href="javascript:void(0)" class="asset-name" @click="openLunaSession(k)">
+                        {{ k.name }}
+                      </a>
+                      <div class="asset-sub">
+                        <span class="rdp-user">{{ k.rdp_username }}</span>
+                        <span v-if="k.jms_asset_id" class="asset-id-tag">ID: {{ k.jms_asset_id.substring(0, 8) }}</span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Plataforma (Windows Icon & Badge like screenshot) -->
+                  <td class="cell-platform">
+                    <div class="platform-badge">
+                      <!-- Windows 4 Squares Icon -->
+                      <svg class="win-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.951-1.802"/>
+                      </svg>
+                      <span>Windows</span>
+                    </div>
+                  </td>
+
+                  <!-- Conexión (JumpServer Teal Monitor Icon + Port) -->
+                  <td class="cell-connection">
+                    <div class="connection-group">
+                      <svg class="jms-monitor-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                      </svg>
+                      <span class="port-chip">:{{ k.rdp_port }}</span>
+                    </div>
+                  </td>
+
+                  <!-- Estado Contenedor (Active Green Pulse or Idle Moon) -->
+                  <td class="cell-lifecycle">
+                    <div v-if="k.container_status === 'running'" class="status-pill running">
+                      <span class="pulse-indicator"></span>
+                      <span>Activo (En Sesión)</span>
+                    </div>
+                    <div v-else class="status-pill idle" title="Ahorrando 768MB RAM. Se activa automáticamente al conectar.">
+                      <span class="idle-moon">💤</span>
+                      <span>En Espera (0% RAM)</span>
+                    </div>
+                  </td>
+
+                  <!-- Latencia / URL Probe Status -->
+                  <td class="cell-url">
+                    <div class="url-info">
+                      <a :href="k.target_url" target="_blank" rel="noopener" class="url-text" :title="k.target_url">
+                        {{ k.target_url }}
+                      </a>
+                      <div class="probe-indicator">
+                        <span v-if="urlTestResults[k.id]?.testing" class="probe-tag testing">
+                          Probando...
+                        </span>
+                        <span v-else-if="urlTestResults[k.id]?.ok" class="probe-tag ok" :title="`HTTP ${urlTestResults[k.id]?.status_code}`">
+                          HTTP {{ urlTestResults[k.id]?.status_code }} ({{ urlTestResults[k.id]?.latency_ms }}ms)
+                        </span>
+                        <span v-else-if="urlTestResults[k.id]?.error" class="probe-tag err" :title="urlTestResults[k.id]?.error">
+                          Inaccesible
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Operaciones (JumpServer Action Buttons) -->
+                  <td class="cell-actions" style="text-align: right;">
+                    <div class="actions-group">
+                      <!-- Conectar en Luna (Primary Eye Button) -->
+                      <button class="action-btn action-connect" title="Abrir sesión en JumpServer Luna" @click="openLunaSession(k)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      </button>
+
+                      <!-- Probar Conectividad -->
+                      <button class="action-btn" title="Probar conectividad de la URL" @click="testConnectivity(k)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
+                      </button>
+
+                      <!-- Editar -->
+                      <button class="action-btn" title="Editar quiosco" @click="openEditModal(k)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+
+                      <!-- Limpiar Caché -->
+                      <button class="action-btn" title="Limpiar cookies y contraseñas guardadas de Chromium" @click="clearCache(k)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                          <line x1="18" y1="9" x2="12" y2="15"/>
+                          <line x1="12" y1="9" x2="18" y2="15"/>
+                        </svg>
+                      </button>
+
+                      <!-- Reiniciar -->
+                      <button class="action-btn" title="Reiniciar sesión / contenedor" @click="restartKiosk(k.id, k.name)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                        </svg>
+                      </button>
+
+                      <!-- Eliminar -->
+                      <button class="action-btn danger" title="Eliminar quiosco y activo" @click="deleteKiosk(k.id, k.name)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- TABLE PAGINATION FOOTER (JumpServer Element Plus Style) -->
+          <div class="jms-pagination">
+            <div class="pagination-total">
+              Total {{ filteredKiosks.length }}
+            </div>
+            <div class="pagination-controls">
+              <div class="page-size-selector">
+                <span>15/página</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </div>
+              <button class="page-btn" disabled>‹</button>
+              <button class="page-btn active">1</button>
+              <button class="page-btn" disabled>›</button>
             </div>
           </div>
         </div>
@@ -1745,139 +1680,7 @@ onUnmounted(() => {
   color: var(--jms-text-secondary);
 }
 
-/* SPLIT LAYOUT (Tree + Table Panel) */
-.jms-split-layout {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  min-height: 520px;
-}
-
-/* LEFT TREE PANEL */
-.jms-tree-panel {
-  width: 220px;
-  background: #ffffff;
-  border: 1px solid var(--jms-border-extra-light);
-  border-radius: 4px;
-  padding: 10px;
-  flex-shrink: 0;
-  position: relative;
-  transition: all 0.2s ease;
-}
-
-.jms-tree-panel.collapsed {
-  width: 20px;
-  padding: 0;
-  overflow: hidden;
-}
-
-.tree-tabs-header {
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--jms-border-extra-light);
-  padding-bottom: 6px;
-  margin-bottom: 8px;
-}
-
-.tree-tab {
-  font-size: 12px;
-  color: var(--jms-text-secondary);
-  cursor: pointer;
-  padding: 2px 8px;
-}
-
-.tree-tab.active {
-  color: var(--jms-primary);
-  font-weight: 600;
-  border-bottom: 2px solid var(--jms-primary);
-}
-
-.tree-actions {
-  margin-left: auto;
-}
-
-.icon-tiny {
-  color: var(--jms-text-secondary);
-  padding: 2px;
-}
-
-.icon-tiny:hover {
-  color: var(--jms-primary);
-}
-
-.tree-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.tree-node-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  font-size: 12px;
-  color: var(--jms-text-regular);
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.tree-node-item:hover {
-  background: var(--jms-bg-hover);
-  color: var(--jms-primary);
-}
-
-.tree-node-item.active {
-  background: var(--jms-primary-light);
-  color: var(--jms-primary);
-  font-weight: 600;
-}
-
-.tree-node-item.root {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.tree-children {
-  padding-left: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.tree-arrow {
-  color: var(--jms-text-secondary);
-  font-size: 14px;
-}
-
-.tree-count {
-  margin-left: auto;
-  font-size: 10px;
-  color: var(--jms-text-secondary);
-  background: #f0f2f5;
-  padding: 0 4px;
-  border-radius: 8px;
-}
-
-.tree-collapse-btn {
-  position: absolute;
-  top: 50%;
-  right: -8px;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 32px;
-  background: #ffffff;
-  border: 1px solid var(--jms-border-base);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--jms-text-secondary);
-  z-index: 10;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* RIGHT TABLE PANEL */
+/* FULL-WIDTH TABLE PANEL */
 .jms-table-panel {
   flex: 1;
   background: #ffffff;
@@ -2212,7 +2015,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-width: 220px;
+  max-width: 280px;
 }
 
 .url-text {
@@ -2222,6 +2025,12 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.probe-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .probe-tag {
