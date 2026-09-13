@@ -1,4 +1,7 @@
 :root {
+  /* Color Scheme declaration for modern browsers */
+  color-scheme: light dark;
+
   /* Milicic Brand Color Palette (Official Design System) */
   --milicic-orange: #F39200;
   --milicic-orange-hover: #D98200;
@@ -11,7 +14,7 @@
   --milicic-gray: #4A5568;
   --milicic-gray-light: #718096;
 
-  /* Aliased System Colors */
+  /* Aliased System Colors (Light Mode Defaults) */
   --jms-primary: #F39200;
   --jms-primary-hover: #D98200;
   --jms-primary-active: #B56D00;
@@ -21,9 +24,10 @@
   --jms-header-bg: #2A343D;
   --jms-header-hover: rgba(255, 255, 255, 0.12);
 
-  /* Neutrals & Backgrounds */
+  /* Neutrals & Backgrounds (Light) */
   --jms-bg-page: #F8F9FA;
   --jms-bg-white: #FFFFFF;
+  --jms-bg-card: #FFFFFF;
   --jms-bg-subtle: #F1F3F5;
   --jms-bg-hover: #F8F9FA;
   --jms-bg-table-header: #F8F9FA;
@@ -56,6 +60,91 @@
   --sidebar-width: 220px;
 }
 
+/* 🌙 Dark Mode Theme Tokens (Milicic Dark Charcoal & Slate) */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Milicic Brand in Dark Mode */
+  --milicic-orange-light: rgba(243, 146, 0, 0.16);
+  --milicic-orange-border: rgba(243, 146, 0, 0.4);
+  --milicic-dark: #F1F5F9;
+  --milicic-slate: #E2E8F0;
+  --milicic-gray: #CBD5E1;
+  --milicic-gray-light: #94A3B8;
+
+  /* Header in Dark Mode */
+  --jms-header-bg: #141A20;
+  --jms-header-hover: rgba(255, 255, 255, 0.08);
+
+  /* Surfaces & Insets */
+  --jms-bg-page: #0F141A;
+  --jms-bg-white: #1A222B;
+  --jms-bg-card: #1A222B;
+  --jms-bg-subtle: #141B22;
+  --jms-bg-hover: #222C38;
+  --jms-bg-table-header: #141B22;
+
+  /* Borders */
+  --jms-border-base: #2D3742;
+  --jms-border-light: #242D36;
+  --jms-border-extra-light: #1E262F;
+
+  /* Typography */
+  --jms-text-primary: #F1F5F9;
+  --jms-text-regular: #CBD5E1;
+  --jms-text-secondary: #94A3B8;
+  --jms-text-placeholder: #64748B;
+
+  /* System Accents */
+  --jms-primary-light: rgba(243, 146, 0, 0.16);
+  --jms-primary-light-border: rgba(243, 146, 0, 0.4);
+
+  --jms-success-light: rgba(56, 161, 105, 0.16);
+  --jms-warning-light: rgba(221, 107, 32, 0.16);
+  --jms-danger-light: rgba(229, 62, 62, 0.16);
+  --jms-info-light: rgba(49, 130, 206, 0.16);
+}
+
+/* Fallback for OS Dark Mode if no explicit theme attribute is set */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --milicic-orange-light: rgba(243, 146, 0, 0.16);
+    --milicic-orange-border: rgba(243, 146, 0, 0.4);
+    --milicic-dark: #F1F5F9;
+    --milicic-slate: #E2E8F0;
+    --milicic-gray: #CBD5E1;
+    --milicic-gray-light: #94A3B8;
+
+    --jms-header-bg: #141A20;
+    --jms-header-hover: rgba(255, 255, 255, 0.08);
+
+    --jms-bg-page: #0F141A;
+    --jms-bg-white: #1A222B;
+    --jms-bg-card: #1A222B;
+    --jms-bg-subtle: #141B22;
+    --jms-bg-hover: #222C38;
+    --jms-bg-table-header: #141B22;
+
+    --jms-border-base: #2D3742;
+    --jms-border-light: #242D36;
+    --jms-border-extra-light: #1E262F;
+
+    --jms-text-primary: #F1F5F9;
+    --jms-text-regular: #CBD5E1;
+    --jms-text-secondary: #94A3B8;
+    --jms-text-placeholder: #64748B;
+
+    --jms-primary-light: rgba(243, 146, 0, 0.16);
+    --jms-primary-light-border: rgba(243, 146, 0, 0.4);
+
+    --jms-success-light: rgba(56, 161, 105, 0.16);
+    --jms-warning-light: rgba(221, 107, 32, 0.16);
+    --jms-danger-light: rgba(229, 62, 62, 0.16);
+    --jms-info-light: rgba(49, 130, 206, 0.16);
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -72,6 +161,7 @@ html, body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 button {
@@ -91,38 +181,39 @@ input, select, textarea {
   padding: 7px 11px;
   outline: none;
   background-color: var(--jms-bg-white);
-  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  transition: border-color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1), background-color 0.2s ease, color 0.2s ease;
 }
 
 input:focus, select:focus, textarea:focus {
   border-color: var(--milicic-orange);
-  box-shadow: 0 0 0 2px rgba(243, 146, 0, 0.2);
+  box-shadow: 0 0 0 2px rgba(243, 146, 0, 0.25);
 }
 
 a {
   color: var(--milicic-orange);
   text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 a:hover {
   color: var(--milicic-orange-hover);
 }
 
-/* Scrollbars */
+/* Modern Scrollbars conforming to color-scheme */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f3f5;
+  background: var(--jms-bg-subtle);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e0;
-  border-radius: 3px;
+  background: var(--jms-border-base);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
+  background: var(--jms-text-secondary);
 }

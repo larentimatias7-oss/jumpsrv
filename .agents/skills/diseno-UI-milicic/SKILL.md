@@ -14,9 +14,17 @@ El diseño debe reflejar solidez ingenieril, industria de gran escala y claridad
 - **Color Secundario / Cabeceras:** `#2A343D` (Gris Pizarra Oscuro).
   - *Uso:* Barras de navegación superiores, texto de títulos de alta jerarquía y footers.
 - **Fondo Principal:** `#FFFFFF` (Blanco puro) y fondos de tarjetas en `#F8F9FA` / `#F1F3F5`.
+- **Modo Oscuro (Dark Mode):**
+  - *Fondo de página:* `#0F141A` (Carbón profundo).
+  - *Superficies / Tarjetas / Modales:* `#1A222B` (Pizarra oscuro refinado).
+  - *Cabecera en Modo Oscuro:* `#141A20`.
+  - *Bordes y separadores:* `#2D3742` / `#242D36`.
+  - *Texto principal en modo oscuro:* `#F1F5F9` (alto contraste).
+  - *Texto secundario:* `#CBD5E1` y `#94A3B8`.
+  - *Acentos y Badges:* Naranja Milicic `#F39200` con fondos suaves translúcidos `rgba(243, 146, 0, 0.16)`.
 - **Tipografía y Textos:**
-  - Títulos: `#1A2026` o `#2A343D` (alto contraste, semibold/bold).
-  - Texto base / Párrafos: `#4A5568` (legibilidad limpia).
+  - Títulos: `#1A2026` o `#2A343D` (modo claro) / `#F1F5F9` (modo oscuro).
+  - Texto base / Párrafos: `#4A5568` (modo claro) / `#CBD5E1` (modo oscuro).
   - Acentos tipográficos: Se permite naranja en subtítulos destacados o métricas numéricas.
 
 ---

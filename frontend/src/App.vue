@@ -171,19 +171,21 @@ const getHeaders = () => {
 }
 
 // --- Fetch Data ---
-const fetchKiosks = async () => {
-  loading.value = true
+const fetchKiosks = async (showLoading = true) => {
+  if (showLoading) loading.value = true
   try {
     const res = await fetch('/api/kiosks', { headers: getHeaders() })
     if (res.ok) {
       kiosks.value = await res.json()
-    } else if (res.status === 401) {
+    } else if (res.status === 401 && showLoading) {
       showToast('Autenticación requerida o credenciales inválidas', 'error')
     }
   } catch (err) {
-    showToast('Error de conexión con el API de JumpServer Kiosk', 'error')
+    if (showLoading) {
+      showToast('Error de conexión con el API de JumpServer Kiosk', 'error')
+    }
   } finally {
-    loading.value = false
+    if (showLoading) loading.value = false
   }
 }
 
@@ -407,11 +409,163 @@ const filteredKiosks = computed(() => {
   })
 })
 
-// Keyboard shortcut (Ctrl+K or /)
+// --- Modern Utilities & Theme Management ---
+// 1. Theme State (Dark / Light)
+const isDarkMode = ref(false)
+
+const applyTheme = (theme) => {
+  document.documentElement.setAttribute('data-theme', theme)
+  localStorage.setItem('kiosk_theme', theme)
+  const meta = document.querySelector('meta[name="color-scheme"]')
+  if (meta) meta.content = theme
+}
+
+const toggleTheme = () => {
+  isDarkMode.value = !isDarkMode.value
+  const theme = isDarkMode.value ? 'dark' : 'light'
+  applyTheme(theme)
+  showToast(isDarkMode.value ? 'Modo oscuro activado 🌙' : 'Modo claro activado ☀️')
+}
+
+const initTheme = () => {
+  const currentAttr = document.documentElement.getAttribute('data-theme')
+  if (currentAttr) {
+    isDarkMode.value = currentAttr === 'dark'
+  } else {
+    const saved = localStorage.getItem('kiosk_theme')
+    if (saved) {
+      isDarkMode.value = saved === 'dark'
+    } else {
+      isDarkMode.value = window.matchMedia('(prefers-color-scheme: dark)').matches
+    }
+  }
+  applyTheme(isDarkMode.value ? 'dark' : 'light')
+}
+
+// 2. Auto-Refresh with visual countdown (0 = off, 15s, 30s, 60s)
+const autoRefreshInterval = ref(Number(localStorage.getItem('kiosk_autorefresh')) || 0)
+const refreshCountdown = ref(autoRefreshInterval.value)
+let autoRefreshTimer = null
+
+const cycleAutoRefresh = () => {
+  const intervals = [0, 15, 30, 60]
+  const currentIndex = intervals.indexOf(autoRefreshInterval.value)
+  const nextInterval = intervals[(currentIndex + 1) % intervals.length]
+  setAutoRefresh(nextInterval)
+}
+
+const setAutoRefresh = (seconds) => {
+  autoRefreshInterval.value = seconds
+  refreshCountdown.value = seconds
+  localStorage.setItem('kiosk_autorefresh', seconds)
+  resetAutoRefreshTimer()
+  if (seconds > 0) {
+    showToast(`Auto-refresco activado cada ${seconds}s`)
+  } else {
+    showToast('Auto-refresco desactivado')
+  }
+}
+
+const resetAutoRefreshTimer = () => {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer)
+  if (autoRefreshInterval.value > 0) {
+    refreshCountdown.value = autoRefreshInterval.value
+    autoRefreshTimer = setInterval(() => {
+      if (refreshCountdown.value > 1) {
+        refreshCountdown.value--
+      } else {
+        refreshCountdown.value = autoRefreshInterval.value
+        fetchKiosks(false) // Silent background poll
+      }
+    }, 1000)
+  }
+}
+
+// 3. Quick Copy RDP Endpoint
+const copiedKioskId = ref(null)
+
+const copyRdpDetails = async (kiosk) => {
+  const host = window.location.hostname || '127.0.0.1'
+  const endpoint = `${host}:${kiosk.rdp_port}`
+  try {
+    await navigator.clipboard.writeText(endpoint)
+    copiedKioskId.value = kiosk.id
+    showToast(`Punto de conexión RDP copiado: ${endpoint}`)
+    setTimeout(() => {
+      if (copiedKioskId.value === kiosk.id) copiedKioskId.value = null
+    }, 2500)
+  } catch (err) {
+    showToast(`Error al copiar al portapapeles: ${endpoint}`, 'error')
+  }
+}
+
+// 4. Export Inventory to JSON / CSV
+const exportInventory = (format = 'csv') => {
+  showActionsDropdown.value = false
+  const list = filteredKiosks.value
+  if (!list.length) {
+    showToast('No hay quioscos para exportar con los filtros actuales', 'error')
+    return
+  }
+
+  const dateStr = new Date().toISOString().slice(0, 10)
+  if (format === 'json') {
+    const dataStr = JSON.stringify(list, null, 2)
+    const blob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `jumpserver_kiosks_${dateStr}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast(`Exportados ${list.length} quioscos a JSON`)
+  } else {
+    const headers = ['Nombre', 'Tipo', 'IP', 'Protocolo', 'Puerto', 'URL', 'Puerto RDP', 'Usuario RDP', 'Estado Contenedor', 'ID Activo JumpServer']
+    const rows = list.map(k => [
+      `"${(k.name || '').replace(/"/g, '""')}"`,
+      `"${k.device_type || 'generic'}"`,
+      `"${k.target_ip || ''}"`,
+      `"${k.target_protocol || 'http'}"`,
+      `"${k.target_port || 80}"`,
+      `"${(k.target_url || '').replace(/"/g, '""')}"`,
+      `"${k.rdp_port || ''}"`,
+      `"${k.rdp_username || ''}"`,
+      `"${k.container_status || 'standby'}"`,
+      `"${k.jms_asset_id || ''}"`
+    ])
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `jumpserver_kiosks_${dateStr}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast(`Exportados ${list.length} quioscos a CSV`)
+  }
+}
+
+// 5. Table Density Toggle ('normal' | 'compact')
+const tableDensity = ref(localStorage.getItem('kiosk_density') || 'normal')
+
+const toggleTableDensity = () => {
+  tableDensity.value = tableDensity.value === 'normal' ? 'compact' : 'normal'
+  localStorage.setItem('kiosk_density', tableDensity.value)
+  showToast(tableDensity.value === 'compact' ? 'Vista compacta activada' : 'Vista cómoda activada')
+}
+
+// Keyboard shortcuts (Ctrl+K or /, Escape)
 const handleKeydown = (e) => {
-  if ((e.ctrlKey && e.key === 'k') || (e.key === '/' && document.activeElement.tagName !== 'INPUT')) {
+  if ((e.ctrlKey && e.key.toLowerCase() === 'k') || (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA')) {
     e.preventDefault()
     searchInputRef.value?.focus()
+  } else if (e.key === 'Escape') {
+    if (showCreateModal.value) showCreateModal.value = false
+    else if (showEditModal.value) showEditModal.value = false
+    else if (showSettingsModal.value) showSettingsModal.value = false
+    else if (showActionsDropdown.value) showActionsDropdown.value = false
+    else if (showUserDropdown.value) showUserDropdown.value = false
+    else if (searchQuery.value) searchQuery.value = ''
   }
 }
 
@@ -435,14 +589,27 @@ const selectSidebar = (item) => {
   }
 }
 
+const systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+const onSystemThemeChange = (e) => {
+  if (!localStorage.getItem('kiosk_theme')) {
+    isDarkMode.value = e.matches
+    applyTheme(e.matches ? 'dark' : 'light')
+  }
+}
+
 onMounted(() => {
+  initTheme()
   fetchKiosks()
   fetchSettings()
+  resetAutoRefreshTimer()
   window.addEventListener('keydown', handleKeydown)
+  systemThemeMediaQuery.addEventListener('change', onSystemThemeChange)
 })
 
 onUnmounted(() => {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer)
   window.removeEventListener('keydown', handleKeydown)
+  systemThemeMediaQuery.removeEventListener('change', onSystemThemeChange)
 })
 </script>
 
@@ -517,6 +684,28 @@ onUnmounted(() => {
           </svg>
         </div>
 
+        <!-- Theme Toggle (Sol / Luna) -->
+        <div 
+          class="jms-nav-btn theme-toggle-btn" 
+          :title="isDarkMode ? 'Cambiar a Modo Claro (Sol)' : 'Cambiar a Modo Oscuro (Luna)'" 
+          @click="toggleTheme"
+        >
+          <svg v-if="isDarkMode" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </div>
+
         <!-- Documentation / Help -->
         <a href="/guia-usuario.html" target="_blank" class="jms-nav-btn" title="Guía de Usuario y Documentación">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -549,6 +738,10 @@ onUnmounted(() => {
 
           <!-- Dropdown -->
           <div v-if="showUserDropdown" class="user-dropdown-menu" @click.stop>
+            <div class="dropdown-item" @click="toggleTheme(); showUserDropdown = false">
+              <span v-if="isDarkMode">☀️ Modo Claro</span>
+              <span v-else>🌙 Modo Oscuro</span>
+            </div>
             <div class="dropdown-item" @click="openSettingsModal(); showUserDropdown = false">
               ⚙️ Ajustes y Políticas
             </div>
@@ -868,11 +1061,25 @@ onUnmounted(() => {
               </button>
 
               <!-- Refrescar Button -->
-              <button class="jms-btn jms-btn-default" @click="fetchKiosks" :disabled="loading">
+              <button class="jms-btn jms-btn-default" @click="fetchKiosks(true)" :disabled="loading">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spinning': loading }">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
                 </svg>
                 Refrescar
+              </button>
+
+              <!-- Auto-Refresh Toggle Button -->
+              <button 
+                :class="['auto-refresh-badge', { active: autoRefreshInterval > 0 }]"
+                @click="cycleAutoRefresh"
+                :title="autoRefreshInterval > 0 ? `Auto-refresco cada ${autoRefreshInterval}s (próximo en ${refreshCountdown}s). Clic para cambiar.` : 'Clic para activar auto-refresco (15s, 30s, 60s)'"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spinning': autoRefreshInterval > 0 && refreshCountdown <= 1 }">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span v-if="autoRefreshInterval === 0">Auto: Off</span>
+                <span v-else>Auto: {{ refreshCountdown }}s</span>
               </button>
 
               <!-- Más acciones ▾ Dropdown -->
@@ -888,6 +1095,13 @@ onUnmounted(() => {
                   <div class="dropdown-menu-item" @click="testAllConnectivity">
                     ⚡ Probar conectividad de todas las URLs
                   </div>
+                  <div class="dropdown-menu-item" @click="exportInventory('csv')">
+                    📥 Exportar inventario (CSV)
+                  </div>
+                  <div class="dropdown-menu-item" @click="exportInventory('json')">
+                    📋 Exportar inventario (JSON)
+                  </div>
+                  <div class="dropdown-divider"></div>
                   <a href="/luna/" target="_blank" class="dropdown-menu-item">
                     🖥️ Abrir consola JumpServer Luna
                   </a>
@@ -907,19 +1121,44 @@ onUnmounted(() => {
                 </svg>
                 <input 
                   v-model="searchQuery" 
-                  placeholder="Ingresa / para buscar"
+                  placeholder="Ingresa / o Ctrl+K..."
                   class="toolbar-search-input"
                 />
                 <button v-if="searchQuery" class="clear-btn" @click="searchQuery = ''">×</button>
               </div>
 
               <div class="toolbar-tool-icons">
-                <button class="icon-tool-btn" title="Filtrar activos en ejecución" @click="selectedStatusFilter = selectedStatusFilter === 'all' ? 'running' : 'all'">
+                <!-- Density toggle button (Normal / Compact) -->
+                <button 
+                  class="icon-tool-btn" 
+                  :title="tableDensity === 'compact' ? 'Cambiar a Vista Cómoda' : 'Cambiar a Vista Compacta'" 
+                  @click="toggleTableDensity"
+                >
+                  <svg v-if="tableDensity === 'compact'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <line x1="3" y1="18" x2="21" y2="18"/>
+                  </svg>
+                  <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="4" x2="21" y2="4"/>
+                    <line x1="3" y1="9" x2="21" y2="9"/>
+                    <line x1="3" y1="15" x2="21" y2="15"/>
+                    <line x1="3" y1="20" x2="21" y2="20"/>
+                  </svg>
+                </button>
+
+                <!-- Filter running toggle -->
+                <button 
+                  :class="['icon-tool-btn', { active: selectedStatusFilter === 'running' }]" 
+                  title="Filtrar activos en ejecución" 
+                  @click="selectedStatusFilter = selectedStatusFilter === 'all' ? 'running' : 'all'"
+                >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
                   </svg>
                 </button>
 
+                <!-- Settings -->
                 <button class="icon-tool-btn" title="Ajustes y Políticas" @click="openSettingsModal">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"/>
@@ -932,7 +1171,7 @@ onUnmounted(() => {
 
           <!-- ASSETS TABLE -->
           <div class="table-scroll-container">
-            <table class="jms-data-table">
+            <table :class="['jms-data-table', tableDensity]">
               <thead>
                 <tr>
                   <th style="width: 40px; text-align: center;">
@@ -1037,6 +1276,22 @@ onUnmounted(() => {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                           <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      </button>
+
+                      <!-- Copiar Punto de Conexión RDP -->
+                      <button 
+                        class="action-btn" 
+                        :class="{ 'copied': copiedKioskId === k.id }" 
+                        :title="copiedKioskId === k.id ? '¡Punto de conexión RDP copiado!' : `Copiar conexión RDP (:puerto ${k.rdp_port})`" 
+                        @click="copyRdpDetails(k)"
+                      >
+                        <svg v-if="copiedKioskId === k.id" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38A169" stroke-width="2.8">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                         </svg>
                       </button>
 
@@ -1563,7 +1818,7 @@ onUnmounted(() => {
   top: 100%;
   right: 0;
   margin-top: 6px;
-  background: #ffffff;
+  background: var(--jms-bg-white);
   color: var(--jms-text-primary);
   border: 1px solid var(--jms-border-base);
   border-radius: 6px;
@@ -1606,10 +1861,11 @@ onUnmounted(() => {
   position: fixed;
   top: 66px;
   right: 20px;
-  background: #ffffff;
+  background: var(--jms-bg-white);
+  color: var(--jms-text-primary);
   padding: 12px 18px;
   border-radius: 6px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1617,6 +1873,9 @@ onUnmounted(() => {
   font-weight: 500;
   z-index: 2000;
   border-left: 4px solid var(--milicic-orange);
+  border-top: 1px solid var(--jms-border-base);
+  border-right: 1px solid var(--jms-border-base);
+  border-bottom: 1px solid var(--jms-border-base);
 }
 
 .jms-toast.error {
@@ -1632,7 +1891,7 @@ onUnmounted(() => {
 /* SIDEBAR */
 .jms-sidebar {
   width: var(--sidebar-width);
-  background: #ffffff;
+  background: var(--jms-bg-white);
   border-right: 1px solid var(--jms-border-base);
   display: flex;
   flex-direction: column;
@@ -1727,8 +1986,8 @@ onUnmounted(() => {
 }
 
 .nav-badge.gray {
-  background: #f1f3f5;
-  color: var(--milicic-gray-light);
+  background: var(--jms-border-extra-light);
+  color: var(--jms-text-secondary);
 }
 
 /* MAIN CONTENT AREA */
@@ -1742,7 +2001,7 @@ onUnmounted(() => {
 
 /* Header & Breadcrumb */
 .jms-content-header {
-  background: #ffffff;
+  background: var(--jms-bg-white);
   border: 1px solid var(--jms-border-base);
   border-radius: 6px;
   padding: 16px 20px 0;
@@ -1792,11 +2051,11 @@ onUnmounted(() => {
 .link-btn {
   font-size: 12px;
   font-weight: 500;
-  color: var(--milicic-gray);
+  color: var(--jms-text-regular);
   border: 1px solid var(--jms-border-base);
   border-radius: 6px;
   padding: 5px 12px;
-  background: #ffffff;
+  background: var(--jms-bg-white);
   transition: all 0.15s ease;
 }
 
@@ -1847,7 +2106,7 @@ onUnmounted(() => {
 }
 
 .milicic-stat-card {
-  background: #ffffff;
+  background: var(--jms-bg-white);
   border: 1px solid var(--jms-border-base);
   border-radius: 8px;
   padding: 20px 22px;
@@ -1866,7 +2125,7 @@ onUnmounted(() => {
 
 .milicic-stat-card.highlight {
   border-color: var(--milicic-orange-border);
-  background: linear-gradient(180deg, #FFFFFF 0%, #FFFDF9 100%);
+  background: var(--jms-bg-white);
 }
 
 .milicic-circle-badge {
@@ -1912,7 +2171,7 @@ onUnmounted(() => {
 /* FULL-WIDTH TABLE PANEL */
 .jms-table-panel {
   flex: 1;
-  background: #ffffff;
+  background: var(--jms-bg-white);
   border: 1px solid var(--jms-border-base);
   border-radius: 6px;
   display: flex;
@@ -1985,7 +2244,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--jms-border-extra-light);
-  background: #ffffff;
+  background: var(--jms-bg-white);
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -1994,6 +2253,33 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Auto-Refresh Badge */
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--jms-border-base);
+  background-color: var(--jms-bg-white);
+  color: var(--jms-text-regular);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auto-refresh-badge:hover {
+  border-color: var(--milicic-orange);
+  color: var(--milicic-orange);
+}
+
+.auto-refresh-badge.active {
+  background-color: var(--milicic-orange-light);
+  border-color: var(--milicic-orange-border);
+  color: var(--milicic-orange);
 }
 
 /* Milicic Styled Buttons */
@@ -2021,8 +2307,8 @@ onUnmounted(() => {
 }
 
 .jms-btn-default {
-  background-color: #ffffff;
-  color: var(--milicic-slate);
+  background-color: var(--jms-bg-white);
+  color: var(--jms-text-primary);
   border: 1px solid var(--jms-border-base);
 }
 
@@ -2041,10 +2327,10 @@ onUnmounted(() => {
   top: 100%;
   left: 0;
   margin-top: 6px;
-  background: #ffffff;
+  background: var(--jms-bg-white);
   border: 1px solid var(--jms-border-base);
   border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
   min-width: 230px;
   z-index: 500;
   padding: 6px 0;
@@ -2053,7 +2339,7 @@ onUnmounted(() => {
 .dropdown-menu-item {
   padding: 8px 16px;
   font-size: 12px;
-  color: var(--milicic-gray);
+  color: var(--jms-text-regular);
   cursor: pointer;
   display: block;
 }
@@ -2112,13 +2398,19 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--milicic-gray);
-  background: #ffffff;
+  color: var(--jms-text-regular);
+  background: var(--jms-bg-white);
   transition: all 0.15s;
 }
 
 .icon-tool-btn:hover {
   border-color: var(--milicic-orange);
+  color: var(--milicic-orange);
+}
+
+.icon-tool-btn.active {
+  background: var(--milicic-orange-light);
+  border-color: var(--milicic-orange-border);
   color: var(--milicic-orange);
 }
 
@@ -2178,7 +2470,8 @@ onUnmounted(() => {
 }
 
 .asset-id-tag {
-  background: #f1f3f5;
+  background: var(--jms-bg-subtle);
+  color: var(--jms-text-secondary);
   padding: 1px 5px;
   border-radius: 3px;
 }
@@ -2204,7 +2497,7 @@ onUnmounted(() => {
 }
 
 .conn-icon {
-  color: var(--milicic-gray-light);
+  color: var(--jms-text-secondary);
 }
 
 .port-chip {
@@ -2235,8 +2528,8 @@ onUnmounted(() => {
 }
 
 .status-pill.idle {
-  background: #f1f3f5;
-  color: var(--milicic-gray-light);
+  background: var(--jms-bg-subtle);
+  color: var(--jms-text-secondary);
 }
 
 .pulse-indicator {
@@ -2253,6 +2546,22 @@ onUnmounted(() => {
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 161, 105, 0); }
 }
 
+/* Compact Table Density Mode */
+.jms-data-table.compact th {
+  padding: 7px 12px;
+  font-size: 11px;
+}
+
+.jms-data-table.compact td {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.jms-data-table.compact .action-btn {
+  width: 24px;
+  height: 24px;
+}
+
 /* URL Cell */
 .url-info {
   display: flex;
@@ -2264,7 +2573,7 @@ onUnmounted(() => {
 .url-text {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--milicic-gray);
+  color: var(--jms-text-regular);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2312,11 +2621,11 @@ onUnmounted(() => {
   height: 28px;
   border-radius: 6px;
   border: 1px solid var(--jms-border-base);
-  background: #ffffff;
+  background: var(--jms-bg-white);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--milicic-gray);
+  color: var(--jms-text-regular);
   transition: all 0.15s;
 }
 
@@ -2324,6 +2633,12 @@ onUnmounted(() => {
   border-color: var(--milicic-orange);
   color: var(--milicic-orange);
   background: var(--milicic-orange-light);
+}
+
+.action-btn.copied {
+  border-color: var(--jms-success);
+  background: var(--jms-success-light);
+  color: var(--jms-success);
 }
 
 .action-btn.action-connect {
@@ -2399,12 +2714,12 @@ onUnmounted(() => {
   height: 26px;
   border: 1px solid var(--jms-border-base);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--jms-bg-white);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: var(--milicic-gray);
+  color: var(--jms-text-regular);
 }
 
 .page-btn.active {
@@ -2423,7 +2738,7 @@ onUnmounted(() => {
 .jms-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(26, 32, 38, 0.6);
+  background: rgba(15, 20, 26, 0.7);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
@@ -2432,9 +2747,10 @@ onUnmounted(() => {
 }
 
 .jms-modal-dialog {
-  background: #ffffff;
+  background: var(--jms-bg-white);
+  border: 1px solid var(--jms-border-base);
   border-radius: 8px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
   width: 90%;
   max-width: 520px;
   overflow: hidden;
@@ -2450,7 +2766,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: #F8F9FA;
+  background: var(--jms-bg-subtle);
 }
 
 .modal-head-title h3 {

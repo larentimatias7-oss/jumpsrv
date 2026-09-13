@@ -625,8 +625,41 @@
             <td><strong>Baja Completa</strong></td>
             <td>Elimina el quiosco, desvincula el activo y las cuentas en JumpServer y libera el puerto RDP para otro equipo.</td>
           </tr>
+          <tr>
+            <td><span class="badge badge-info">📋 Copiar RDP</span></td>
+            <td><strong>Copia Rápida</strong></td>
+            <td>Copia instantáneamente al portapapeles el punto de conexión RDP (<code>host:puerto</code>) con feedback visual (icono de verificación verde).</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-orange">🌙 Modo Oscuro</span></td>
+            <td><strong>Tema Dinámico</strong></td>
+            <td>Alterna entre Modo Claro y Modo Oscuro desde la cabecera, adaptando contrastes para ambientes NOC y turnos nocturnos con persistencia en localStorage.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">⏱️ Auto-Refresco</span></td>
+            <td><strong>Sondeo Automático</strong></td>
+            <td>Permite seleccionar intervalos de actualización en vivo (15s, 30s, 60s o Desactivado) con temporizador visual regresivo.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warning">📥 Exportar</span></td>
+            <td><strong>Exportación CSV/JSON</strong></td>
+            <td>Descarga inmediata del inventario completo de quioscos en formatos CSV o JSON desde el menú "Más acciones".</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">📐 Densidad</span></td>
+            <td><strong>Vista Cómoda / Compacta</strong></td>
+            <td>Alterna el espaciado y altura de filas de la tabla para optimizar la visualización en monitores con gran cantidad de quioscos.</td>
+          </tr>
         </tbody>
       </table>
+
+      <div style="margin-top: 20px; padding: 14px 18px; background: var(--bg-card-subtle); border-radius: 6px; border: 1px solid var(--border-subtle);">
+        <strong style="color: var(--text-primary);">⌨️ Atajos de Teclado:</strong>
+        <ul style="margin: 8px 0 0 18px; color: var(--text-secondary); font-size: 0.9rem;">
+          <li><kbd style="background: var(--border-subtle); padding: 2px 6px; border-radius: 4px; font-weight: 600;">Ctrl+K</kbd> o <kbd style="background: var(--border-subtle); padding: 2px 6px; border-radius: 4px; font-weight: 600;">/</kbd>: Enfoca inmediatamente la barra de búsqueda global.</li>
+          <li><kbd style="background: var(--border-subtle); padding: 2px 6px; border-radius: 4px; font-weight: 600;">Esc</kbd>: Limpia la búsqueda o cierra el modal/menú desplegable activo.</li>
+        </ul>
+      </div>
     </section>
 
     <!-- Preguntas Frecuentes / Troubleshooting -->
