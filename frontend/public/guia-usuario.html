@@ -10,32 +10,39 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --jms-primary: #148F76;
-      --jms-primary-hover: #17a589;
-      --jms-primary-active: #117a65;
-      --jms-primary-light: #e8f7f3;
-      --jms-primary-border: #b8e6dc;
+      /* Milicic Brand Color Palette */
+      --milicic-orange: #F39200;
+      --milicic-orange-hover: #D98200;
+      --milicic-orange-light: #FFF8EE;
+      --milicic-orange-border: #FCD69E;
       
-      --milicic-orange: #FFA600;
+      --milicic-slate: #2A343D;
+      --milicic-dark: #1A2026;
+      --milicic-gray: #4A5568;
+      --milicic-gray-light: #718096;
 
-      --bg-page: #f5f7fa;
-      --bg-card: #ffffff;
-      --bg-card-subtle: #fafafa;
-      --border-subtle: #ebeef5;
-      --border-base: #dcdfe6;
+      --jms-primary: #F39200;
+      --jms-primary-hover: #D98200;
+      --jms-header-bg: #2A343D;
 
-      --text-primary: #303133;
-      --text-secondary: #606266;
-      --text-muted: #909399;
+      --bg-page: #F8F9FA;
+      --bg-card: #FFFFFF;
+      --bg-card-subtle: #F8F9FA;
+      --border-subtle: #E2E8F0;
+      --border-base: #CBD5E0;
 
-      --success: #67c23a;
-      --success-light: #f0f9eb;
-      --warning: #e6a23c;
-      --warning-light: #fdf6ec;
-      --danger: #f56c6c;
-      --danger-light: #fef0f0;
-      --info: #1890ff;
-      --info-light: #e6f7ff;
+      --text-primary: #1A2026;
+      --text-secondary: #4A5568;
+      --text-muted: #718096;
+
+      --success: #38A169;
+      --success-light: #F0FFF4;
+      --warning: #DD6B20;
+      --warning-light: #FFFAF0;
+      --danger: #E53E3E;
+      --danger-light: #FFF5F5;
+      --info: #3182CE;
+      --info-light: #EBF8FF;
 
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
@@ -52,10 +59,10 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* JumpServer Top Navbar */
+    /* Milicic Top Navbar (#2A343D) */
     .jms-header {
-      background-color: var(--jms-primary);
-      height: 54px;
+      background-color: var(--jms-header-bg);
+      height: 56px;
       color: #ffffff;
       display: flex;
       align-items: center;
@@ -64,53 +71,48 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
     }
 
     .header-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
     }
 
-    .jms-logo-icon {
+    .milicic-logo-wrap {
       display: flex;
       align-items: center;
-      justify-content: center;
+    }
+
+    .milicic-logo-wrap img {
+      height: 24px;
+      width: auto;
+      filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+    }
+
+    .brand-divider {
+      color: rgba(255, 255, 255, 0.25);
+      font-size: 16px;
+      font-weight: 300;
     }
 
     .jms-title {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       letter-spacing: -0.01em;
       color: #ffffff;
     }
 
-    .brand-divider {
-      color: rgba(255, 255, 255, 0.4);
-    }
-
-    .milicic-badge {
-      background: #ffffff;
-      padding: 3px 8px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-    }
-
-    .milicic-badge img {
-      height: 22px;
-      width: auto;
-    }
-
     .header-tag {
-      font-size: 11px;
-      font-weight: 600;
-      background: rgba(255, 255, 255, 0.2);
-      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--milicic-orange);
+      color: #ffffff;
+      padding: 2px 7px;
       border-radius: 4px;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
     }
 
     .header-actions {
@@ -123,30 +125,32 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 14px;
-      border-radius: 4px;
+      padding: 7px 16px;
+      border-radius: 6px;
       font-size: 12px;
       font-weight: 600;
       text-decoration: none;
-      transition: all 0.2s;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .nav-btn-light {
-      background: #ffffff;
-      color: var(--jms-primary);
+    .nav-btn-orange {
+      background: var(--milicic-orange);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(243, 146, 0, 0.3);
     }
 
-    .nav-btn-light:hover {
-      background: #f0f9f6;
+    .nav-btn-orange:hover {
+      background: var(--milicic-orange-hover);
+      transform: translateY(-1px);
     }
 
     .nav-btn-ghost {
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
     }
 
     .nav-btn-ghost:hover {
-      background: rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.22);
     }
 
     /* Container */
@@ -160,18 +164,19 @@
     .hero-card {
       background: #ffffff;
       border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 28px 32px;
+      border-radius: 8px;
+      padding: 30px 34px;
       margin-bottom: 24px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      border-left: 5px solid var(--jms-primary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      border-left: 5px solid var(--milicic-orange);
     }
 
     .hero-card h1 {
-      font-size: 1.55rem;
-      font-weight: 700;
+      font-size: 1.6rem;
+      font-weight: 800;
       color: var(--text-primary);
       margin-bottom: 6px;
+      letter-spacing: -0.02em;
     }
 
     .hero-card p {
@@ -184,8 +189,8 @@
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 28px 32px;
+      border-radius: 8px;
+      padding: 28px 34px;
       margin-bottom: 24px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
@@ -219,22 +224,22 @@
     .feature-box {
       background: var(--bg-card-subtle);
       border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 18px 20px;
+      border-radius: 8px;
+      padding: 20px 22px;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      border-top: 3px solid var(--jms-primary);
+      border-top: 3px solid var(--milicic-orange);
     }
 
     .feature-icon {
-      font-size: 1.5rem;
+      font-size: 1.6rem;
       margin-bottom: 2px;
     }
 
     .feature-box h3 {
-      font-size: 1.02rem;
-      font-weight: 600;
+      font-size: 1.05rem;
+      font-weight: 700;
       color: var(--text-primary);
     }
 
@@ -248,8 +253,8 @@
     .step-card {
       background: var(--bg-card-subtle);
       border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 20px 24px 20px 72px;
+      border-radius: 8px;
+      padding: 22px 24px 22px 76px;
       margin-bottom: 16px;
       position: relative;
     }
@@ -257,23 +262,23 @@
     .step-number {
       position: absolute;
       left: 20px;
-      top: 20px;
-      width: 36px;
-      height: 36px;
-      background: var(--jms-primary);
+      top: 22px;
+      width: 40px;
+      height: 40px;
+      background: var(--milicic-orange);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
-      font-size: 1.05rem;
+      font-weight: 800;
+      font-size: 1.1rem;
       color: #ffffff;
-      box-shadow: 0 2px 6px rgba(20, 143, 118, 0.3);
+      box-shadow: 0 2px 8px rgba(243, 146, 0, 0.35);
     }
 
     .step-card h3 {
-      font-size: 1.08rem;
-      font-weight: 600;
+      font-size: 1.1rem;
+      font-weight: 700;
       margin-bottom: 6px;
       color: var(--text-primary);
     }
@@ -292,22 +297,23 @@
     /* Code */
     code {
       font-family: var(--font-mono);
-      background: var(--jms-primary-light);
-      color: var(--jms-primary);
+      background: var(--milicic-orange-light);
+      color: var(--milicic-orange);
+      border: 1px solid var(--milicic-orange-border);
       padding: 2px 6px;
-      border-radius: 3px;
+      border-radius: 4px;
       font-size: 0.88em;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .code-block {
       font-family: var(--font-mono);
-      background: #2b303c;
-      border-radius: 4px;
-      padding: 12px 16px;
+      background: var(--milicic-slate);
+      border-radius: 6px;
+      padding: 14px 18px;
       font-size: 0.88rem;
       color: #f8fafc;
-      margin: 10px 0;
+      margin: 12px 0;
       overflow-x: auto;
     }
 
@@ -320,11 +326,11 @@
     }
 
     table.guide-table th {
-      background: #fafafa;
-      padding: 10px 14px;
+      background: #F8F9FA;
+      padding: 12px 16px;
       text-align: left;
-      font-weight: 600;
-      color: var(--text-secondary);
+      font-weight: 700;
+      color: var(--milicic-slate);
       border-bottom: 1px solid var(--border-subtle);
       font-size: 0.8rem;
       text-transform: uppercase;
@@ -332,24 +338,25 @@
     }
 
     table.guide-table td {
-      padding: 12px 14px;
+      padding: 14px 16px;
       border-bottom: 1px solid var(--border-subtle);
       color: var(--text-secondary);
     }
 
     table.guide-table tr:hover {
-      background: #fcfdfe;
+      background: #FCFDFE;
     }
 
     /* Badges */
     .badge {
       display: inline-block;
-      padding: 3px 8px;
+      padding: 3px 9px;
       border-radius: 4px;
       font-size: 0.76rem;
-      font-weight: 600;
+      font-weight: 700;
     }
 
+    .badge-orange { background: var(--milicic-orange-light); color: var(--milicic-orange); border: 1px solid var(--milicic-orange-border); }
     .badge-success { background: var(--success-light); color: var(--success); }
     .badge-info { background: var(--info-light); color: var(--info); }
     .badge-warning { background: var(--warning-light); color: var(--warning); }
@@ -357,12 +364,12 @@
 
     /* Alerts */
     .alert-box {
-      border-left: 4px solid var(--jms-primary);
-      background: var(--jms-primary-light);
+      border-left: 4px solid var(--milicic-orange);
+      background: var(--milicic-orange-light);
       padding: 14px 18px;
-      border-radius: 0 4px 4px 0;
+      border-radius: 0 6px 6px 0;
       margin: 18px 0;
-      font-size: 0.9rem;
+      font-size: 0.92rem;
       color: var(--text-primary);
     }
 
@@ -378,8 +385,8 @@
     footer {
       text-align: center;
       color: var(--text-muted);
-      font-size: 0.82rem;
-      padding-top: 10px;
+      font-size: 0.84rem;
+      padding-top: 16px;
     }
 
     @media (max-width: 768px) {
@@ -390,24 +397,19 @@
   </style>
 </head>
 <body>
-  <!-- JumpServer Style Header Bar -->
+  <!-- Milicic Official Dark Slate Header Bar (#2A343D) -->
   <header class="jms-header">
     <div class="header-left">
-      <div class="jms-logo-icon" title="JumpServer">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
+      <div class="milicic-logo-wrap" title="Milicic S.A.">
+        <img src="/milicic-logo.png" alt="Milicic S.A." />
       </div>
-      <span class="jms-title">JumpServer</span>
-      <span class="brand-divider">/</span>
-      <div class="milicic-badge" title="Milicic S.A.">
-        <img src="/milicic-logo.png" alt="Milicic" />
-      </div>
-      <span class="header-tag">Kiosk Manager</span>
+      <span class="brand-divider">|</span>
+      <span class="jms-title">Kiosk Manager</span>
+      <span class="header-tag">PAM RDP</span>
     </div>
 
     <div class="header-actions">
-      <a href="/" class="nav-btn nav-btn-light">
+      <a href="/" class="nav-btn nav-btn-orange">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="7" height="7"/>
           <rect x="14" y="3" width="7" height="7"/>
@@ -415,6 +417,9 @@
           <rect x="3" y="14" width="7" height="7"/>
         </svg>
         Ir al Gestor de Quioscos
+      </a>
+      <a href="/manual_instalacion_kiosk_manager.html" target="_blank" class="nav-btn nav-btn-ghost">
+        🚀 Manual de Despliegue
       </a>
       <a href="/luna/" target="_blank" class="nav-btn nav-btn-ghost">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -431,14 +436,14 @@
     <!-- Hero Title -->
     <div class="hero-card">
       <h1>Manual Oficial de Usuario y Guía de Operaciones</h1>
-      <p>JumpServer Kiosk Manager para Milicic S.A. — Orquestación autónoma de quioscos RDP web y gestión centralizada.</p>
+      <p>JumpServer Kiosk Manager para Milicic S.A. — Orquestación autónoma de quioscos RDP web y gestión centralizada de accesos a infraestructura.</p>
     </div>
 
     <!-- Descripción General -->
     <section class="card">
       <h2 class="section-title">📘 1. Descripción General del Sistema</h2>
       <p>
-        <strong>JumpServer Kiosk Manager</strong> es una solución autónoma de orquestación de quioscos RDP web para <strong>JumpServer Community Edition (CE)</strong>. 
+        <strong>JumpServer Kiosk Manager</strong> es una solución autónoma de orquestación de quioscos RDP web para <strong>JumpServer Community Edition (CE)</strong>, adaptada bajo la identidad visual de <strong>Milicic S.A.</strong>
         Permite a los administradores de sistemas y redes acceder a las consolas de gestión web de dispositivos de infraestructura (servidores de monitoreo Zabbix, routers MikroTik, firewalls FortiGate, hipervisores Proxmox, switches, consolas iDRAC y cámaras IP) a través del portal de JumpServer Luna.
       </p>
       <p>
@@ -489,8 +494,8 @@
       <!-- Paso 2 -->
       <div class="step-card">
         <div class="step-number">2</div>
-        <h3>Hacer Clic en "+ Crear"</h3>
-        <p>En la barra de herramientas del panel, pulsa el botón verde <strong>+ Crear</strong>. Se abrirá la ventana modal de aprovisionamiento.</p>
+        <h3>Hacer Clic en "+ Crear Quiosco"</h3>
+        <p>En la barra de herramientas del panel, pulsa el botón naranja <strong>+ Crear Quiosco</strong>. Se abrirá la ventana modal de aprovisionamiento.</p>
       </div>
 
       <!-- Paso 3 -->
@@ -526,7 +531,7 @@
         <h3>Conectar y Utilizar en JumpServer Luna</h3>
         <p>¡Listo! Puedes conectar de dos formas:</p>
         <ul>
-          <li><strong>Conexión Directa desde el Dashboard:</strong> Haz clic en el botón verde con icono de ojo en la fila del dispositivo. Se abrirá la sesión de Luna de inmediato.</li>
+          <li><strong>Conexión Directa desde el Dashboard:</strong> Haz clic en el botón de conexión rápida en la fila del dispositivo. Se abrirá la sesión de Luna de inmediato.</li>
           <li><strong>Desde JumpServer Luna:</strong> Accede a <code>/luna/</code>, busca el dispositivo en la lista de activos y haz clic para conectar.</li>
         </ul>
       </div>
@@ -536,9 +541,49 @@
       </div>
     </section>
 
+    <!-- Políticas de Ciclo de Vida y RAM -->
+    <section class="card">
+      <h2 class="section-title">⏱️ 3. Políticas de Ciclo de Vida y Conservación de Memoria RAM</h2>
+      <p>
+        Para garantizar estabilidad de alta escala en servidores de producción, el sistema implementa 4 salvaguardas temporales configurables desde el modal de <strong>Ajustes & Políticas</strong>:
+      </p>
+
+      <table class="guide-table">
+        <thead>
+          <tr>
+            <th>Política</th>
+            <th>Valor Default</th>
+            <th>Propósito y Comportamiento</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Ventana de Gracia tras Desconexión</strong></td>
+            <td><span class="badge badge-orange">30 segundos</span></td>
+            <td>Tiempo de espera antes de apagar el contenedor cuando el operador cierra la pestaña o recarga la página (F5). Evita reinicios innecesarios ante microcortes.</td>
+          </tr>
+          <tr>
+            <td><strong>Watchdog de Inactividad de Tráfico</strong></td>
+            <td><span class="badge badge-orange">900s (15 min)</span></td>
+            <td>Interrumpe la sesión y apaga el contenedor si no se registra tráfico RDP bidireccional durante el periodo configurado, liberando memoria RAM no utilizada.</td>
+          </tr>
+          <tr>
+            <td><strong>Límite Máximo Absoluto por Sesión</strong></td>
+            <td><span class="badge badge-orange">14400s (4 horas)</span></td>
+            <td>Tiempo límite continuo absoluto de sesión ininterrumpida. Fuerza el cierre y rotación preventiva para liberar recursos.</td>
+          </tr>
+          <tr>
+            <td><strong>Límite Preventivo de Concurrencia</strong></td>
+            <td><span class="badge badge-orange">4 sesiones</span></td>
+            <td>Verifica los contenedores simultáneos antes de encender uno nuevo. Previene saturación de RAM del host y caídas por OOM Killer.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
     <!-- Funciones del Dashboard -->
     <section class="card">
-      <h2 class="section-title">🎛️ 3. Funciones del Dashboard de Gestión</h2>
+      <h2 class="section-title">🎛️ 4. Funciones del Dashboard de Gestión</h2>
       <p>El panel de control incluye herramientas diseñadas para simplificar la operación diaria:</p>
 
       <table class="guide-table">
@@ -551,7 +596,7 @@
         </thead>
         <tbody>
           <tr>
-            <td><span class="badge badge-success">👁️ Conectar</span></td>
+            <td><span class="badge badge-orange">👁️ Conectar</span></td>
             <td><strong>One-Click Connect</strong></td>
             <td>Abre la sesión gráfica en JumpServer Luna en una nueva pestaña sin tener que navegar por los menús de JumpServer.</td>
           </tr>
@@ -586,27 +631,27 @@
 
     <!-- Preguntas Frecuentes / Troubleshooting -->
     <section class="card">
-      <h2 class="section-title">❓ 4. Preguntas Frecuentes y Consejos Operativos</h2>
+      <h2 class="section-title">❓ 5. Preguntas Frecuentes y Consejos Operativos</h2>
 
       <div style="margin-bottom: 20px;">
-        <h3 style="font-size: 1.02rem; margin-bottom: 6px; color: var(--text-primary);">¿Por qué el estado del contenedor dice "💤 En Espera (0% RAM)"?</h3>
+        <h3 style="font-size: 1.05rem; margin-bottom: 6px; color: var(--text-primary);">¿Por qué el estado del contenedor dice "💤 En Espera (0% RAM)"?</h3>
         <p>Es el comportamiento normal y deseado. Para no consumir la memoria RAM de tu servidor, los contenedores solo se encienden mientras alguien los está usando. Cuando te desconectas, tras 120 segundos se detienen automáticamente para ahorrar memoria.</p>
       </div>
 
       <div style="margin-bottom: 20px;">
-        <h3 style="font-size: 1.02rem; margin-bottom: 6px; color: var(--text-primary);">¿Qué hago si cambié la IP o ruta de un equipo?</h3>
+        <h3 style="font-size: 1.05rem; margin-bottom: 6px; color: var(--text-primary);">¿Qué hago si cambié la IP o ruta de un equipo?</h3>
         <p>No necesitas borrar el dispositivo y crearlo de nuevo. Simplemente haz clic en el botón <strong>✏️ Editar</strong>, ingresa la nueva URL (ej: <code>http://192.168.1.110/zabbix/</code>) y presiona "Guardar Cambios". En tu próxima conexión, el quiosco abrirá la nueva ruta automáticamente.</p>
       </div>
 
       <div style="margin-bottom: 20px;">
-        <h3 style="font-size: 1.02rem; margin-bottom: 6px; color: var(--text-primary);">¿Cuántos dispositivos puedo agregar simultáneamente?</h3>
+        <h3 style="font-size: 1.05rem; margin-bottom: 6px; color: var(--text-primary);">¿Cuántos dispositivos puedo agregar simultáneamente?</h3>
         <p>El pool predeterminado asigna puertos desde el <code>33891</code> hasta el <code>33920</code> (30 quioscos). Si necesitas más puertos, se puede ampliar el rango fácilmente en la configuración del backend.</p>
       </div>
     </section>
 
     <!-- Footer -->
     <footer>
-      JumpServer | Milicic Kiosk Manager &copy; 2026. Desplegado en JumpServer Community Edition.
+      JumpServer | Milicic Kiosk Manager &copy; 2026. Desplegado en JumpServer Community Edition para Milicic S.A.
     </footer>
   </div>
 </body>

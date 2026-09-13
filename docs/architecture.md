@@ -60,5 +60,10 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
 
 ### E. Interfaz de Administración Corporativa (`frontend/` + Nginx `:8080`)
 - Single Page Application (SPA) construida en **Vue 3** y empaquetada con **Vite**.
+- **Sistema de Diseño Corporativo Milicic (`.agent/skills/diseno-UI-milicic/SKILL.md`):**
+  - **Paleta de Identidad:** Cabecera en Gris Pizarra Oscuro (`#2A343D`) con logotipo institucional en blanco, color de acento y CTA en Naranja Milicic (`#F39200`), fondos limpios en blanco (`#FFFFFF`) y grises neutros (`#F8F9FA`).
+  - **Tarjetas de Métricas Circulares:** Métricas visuales de impacto (activos totales, sesiones activas, memoria RAM ahorrada en reposo y puertos RDP asignados) inspiradas en los badges de la web corporativa.
+  - **Panel de Políticas Dinámicas:** Modal integrado para ajustar en tiempo real los 4 parámetros de ciclo de vida (`disconnect_grace_seconds`, `idle_timeout_seconds`, `max_session_lifetime_seconds`, `max_concurrent_sessions`) con persistencia en SQLite (`/api/settings`).
 - Servida por **Nginx** en el puerto `8080` que actúa como reverse proxy hacia la API FastAPI (`127.0.0.1:8000/api/`).
-- Admite operaciones CRUD completas (`GET`, `POST`, `PUT`, `DELETE`), pruebas de conectividad de destino en vivo (`test-url`) y acceso directo con un clic a JumpServer Luna.
+- Admite operaciones CRUD completas (`GET`, `POST`, `PUT`, `DELETE`), pruebas de conectividad de destino en vivo (`test-url`), limpieza de caché de Chromium, reinicio y acceso directo con un clic a JumpServer Luna.
+

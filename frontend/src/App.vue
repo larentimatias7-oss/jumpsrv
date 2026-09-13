@@ -33,51 +33,6 @@ const authCredentials = ref({
   pass: localStorage.getItem('kiosk_pass') || 'admin'
 })
 
-// Forms
-const form = ref({
-  name: '',
-  device_type: 'generic',
-  target_ip: '',
-  target_protocol: 'http',
-  target_port: 80,
-  target_url: '',
-  node_id: ''
-})
-
-const editForm = ref({
-  id: '',
-  name: '',
-  device_type: 'generic',
-  target_url: ''
-})
-
-// Device Types Catalog
-const deviceTypes = [
-  { id: 'generic', label: 'Generic Web Console', category: 'web', icon: '🌐' },
-  { id: 'zabbix', label: 'Zabbix Monitoring', category: 'monitoring', icon: '📊' },
-  { id: 'router', label: 'Router / Gateway', category: 'network', icon: '🔀' },
-  { id: 'switch', label: 'Switch / Core', category: 'network', icon: '⚡' },
-  { id: 'proxmox', label: 'Proxmox / Hypervisor', category: 'virtualization', icon: '🖥️' },
-  { id: 'camera', label: 'IP Camera / CCTV', category: 'monitoring', icon: '📹' },
-  { id: 'idrac', label: 'Dell iDRAC / IPMI', category: 'virtualization', icon: '⚙️' },
-  { id: 'fortigate', label: 'Fortinet FortiGate', category: 'network', icon: '🛡️' }
-]
-
-// --- Notifications ---
-const showToast = (msg, type = 'success') => {
-  notification.value = { msg, type }
-  setTimeout(() => { notification.value = null }, 4000)
-}
-
-// --- API Helpers ---
-const getHeaders = () => {
-  const token = btoa(`${authCredentials.value.user}:${authCredentials.value.pass}`)
-  return {
-    'Authorization': `Basic ${token}`,
-    'Content-Type': 'application/json'
-  }
-}
-
 // --- Session Lifecycle & RAM Conservation Policies ---
 const lifecycleSettings = ref({
   disconnect_grace_seconds: 30,
@@ -169,6 +124,51 @@ const saveAllSettings = async () => {
 }
 
 const saveCredentials = saveAllSettings
+
+// Forms
+const form = ref({
+  name: '',
+  device_type: 'generic',
+  target_ip: '',
+  target_protocol: 'http',
+  target_port: 80,
+  target_url: '',
+  node_id: ''
+})
+
+const editForm = ref({
+  id: '',
+  name: '',
+  device_type: 'generic',
+  target_url: ''
+})
+
+// Device Types Catalog
+const deviceTypes = [
+  { id: 'generic', label: 'Generic Web Console', category: 'web', icon: '🌐' },
+  { id: 'zabbix', label: 'Zabbix Monitoring', category: 'monitoring', icon: '📊' },
+  { id: 'router', label: 'Router / Gateway', category: 'network', icon: '🔀' },
+  { id: 'switch', label: 'Switch / Core', category: 'network', icon: '⚡' },
+  { id: 'proxmox', label: 'Proxmox / Hypervisor', category: 'virtualization', icon: '🖥️' },
+  { id: 'camera', label: 'IP Camera / CCTV', category: 'monitoring', icon: '📹' },
+  { id: 'idrac', label: 'Dell iDRAC / IPMI', category: 'virtualization', icon: '⚙️' },
+  { id: 'fortigate', label: 'Fortinet FortiGate', category: 'network', icon: '🛡️' }
+]
+
+// --- Notifications ---
+const showToast = (msg, type = 'success') => {
+  notification.value = { msg, type }
+  setTimeout(() => { notification.value = null }, 4000)
+}
+
+// --- API Helpers ---
+const getHeaders = () => {
+  const token = btoa(`${authCredentials.value.user}:${authCredentials.value.pass}`)
+  return {
+    'Authorization': `Basic ${token}`,
+    'Content-Type': 'application/json'
+  }
+}
 
 // --- Fetch Data ---
 const fetchKiosks = async () => {
@@ -448,27 +448,27 @@ onUnmounted(() => {
 
 <template>
   <div class="jms-app-container">
-    <!-- TOP NAVBAR (JumpServer Signature Teal Bar #148F76) -->
+    <!-- TOP NAVBAR (Milicic Official Dark Slate #2A343D Bar with White Logo) -->
     <header class="jms-navbar">
       <div class="jms-navbar-left">
-        <!-- JumpServer + Milicic Brand Group -->
+        <!-- Milicic Brand + JumpServer Integration -->
         <div class="jms-brand-group">
-          <!-- JumpServer Hexagonal/Isometric Cubes Logo -->
+          <!-- Official Milicic Logo in White (Matching Website) -->
+          <div class="milicic-brand-wrap" title="Milicic S.A. Construcciones y Servicios">
+            <MilicicLogo height="24" :white="true" />
+          </div>
+
+          <span class="jms-brand-divider">|</span>
+
+          <!-- JumpServer Hexagonal Icon -->
           <div class="jms-logo-icon" title="JumpServer Enterprise PAM">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
           </div>
-          <span class="jms-brand-title">JumpServer</span>
+          <span class="jms-brand-title">Kiosk Manager</span>
 
-          <span class="jms-brand-divider">/</span>
-
-          <!-- Milicic Logo Integration -->
-          <div class="milicic-badge" title="Milicic S.A.">
-            <MilicicLogo height="24" />
-          </div>
-
-          <span class="jms-brand-badge">Kiosk Manager</span>
+          <span class="jms-brand-badge">PAM RDP</span>
         </div>
       </div>
 
@@ -491,7 +491,7 @@ onUnmounted(() => {
 
       <!-- Right Actions & User Profile -->
       <div class="jms-navbar-right">
-        <!-- Active Sessions Notification Bell with Badge -->
+        <!-- Active Sessions Notification Bell with Milicic Orange Badge -->
         <div class="jms-nav-btn" :title="`${activeSessionsCount} sesiones activas en ejecución`" @click="selectSidebar('active_sessions')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -510,7 +510,7 @@ onUnmounted(() => {
         </a>
 
         <!-- Settings Modal Trigger -->
-        <div class="jms-nav-btn" title="Ajustes de API JumpServer" @click="openSettingsModal">
+        <div class="jms-nav-btn" title="Ajustes del Sistema & Políticas de Sesión" @click="openSettingsModal">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -549,8 +549,8 @@ onUnmounted(() => {
 
           <!-- Dropdown -->
           <div v-if="showUserDropdown" class="user-dropdown-menu" @click.stop>
-            <div class="dropdown-item" @click="showSettingsModal = true; showUserDropdown = false">
-              ⚙️ Configuración de API
+            <div class="dropdown-item" @click="openSettingsModal(); showUserDropdown = false">
+              ⚙️ Ajustes y Políticas
             </div>
             <a href="/guia-usuario.html" target="_blank" class="dropdown-item">
               📖 Manual de Usuario
@@ -630,7 +630,7 @@ onUnmounted(() => {
               <polygon points="5 3 19 12 5 21 5 3"/>
             </svg>
             <span>Sesiones activas</span>
-            <span v-if="activeSessionsCount > 0" class="nav-badge green">{{ activeSessionsCount }}</span>
+            <span v-if="activeSessionsCount > 0" class="nav-badge orange">{{ activeSessionsCount }}</span>
           </div>
 
           <div 
@@ -686,19 +686,19 @@ onUnmounted(() => {
             <span>Manual de despliegue</span>
           </a>
 
-          <div class="nav-item" @click="showSettingsModal = true">
+          <div class="nav-item" @click="openSettingsModal">
             <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"/>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
-            <span>Configuración API</span>
+            <span>Ajustes & Políticas</span>
           </div>
         </nav>
       </aside>
 
       <!-- MAIN WORKSPACE CONTENT -->
       <main class="jms-content">
-        <!-- Breadcrumbs & Navigation Bar (Exact JumpServer Header) -->
+        <!-- Breadcrumbs & Navigation Bar -->
         <div class="jms-content-header">
           <div class="content-title-row">
             <div class="title-left">
@@ -708,7 +708,7 @@ onUnmounted(() => {
                   <polyline points="12 19 5 12 12 5"/>
                 </svg>
               </button>
-              <h2>Lista de quioscos</h2>
+              <h2>Gestión de Quioscos RDP</h2>
             </div>
 
             <!-- Header Action Links -->
@@ -725,13 +725,13 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Horizontal Category Tabs (Cuenta normal / Cuenta virtual) -->
+          <!-- Horizontal Category Tabs -->
           <div class="jms-tabs">
             <button 
               :class="['tab-item', { active: activeTab === 'normal' }]"
               @click="activeTab = 'normal'; showStatsPanel = false"
             >
-              Quioscos normales
+              Quioscos activos
             </button>
             <button 
               :class="['tab-item', { active: activeTab === 'luna' }]"
@@ -744,38 +744,49 @@ onUnmounted(() => {
               :class="['tab-item', { active: activeTab === 'stats' }]"
               @click="activeTab = 'stats'; showStatsPanel = true"
             >
-              Métricas de ahorro de RAM
+              Métricas de ahorro & RAM
             </button>
           </div>
         </div>
 
-        <!-- Optional Stat Cards Banner (When Dashboard/Stats Tab is active) -->
-        <div v-if="showStatsPanel || activeTab === 'stats'" class="stats-overview-grid">
-          <div class="stat-box">
-            <span class="stat-title">Total Quioscos</span>
-            <span class="stat-number">{{ kiosks.length }}</span>
-            <span class="stat-sub">Activos Web Registrados</span>
+        <!-- STAT CARDS BANNER (Milicic Circular Achievements Design Style) -->
+        <div v-if="showStatsPanel || activeTab === 'stats'" class="milicic-stats-grid">
+          <div class="milicic-stat-card">
+            <div class="milicic-circle-badge">
+              <span class="circle-number">{{ kiosks.length }}</span>
+            </div>
+            <span class="stat-main-label">Activos Totales</span>
+            <span class="stat-sub-label">Dispositivos web registrados</span>
           </div>
-          <div class="stat-box">
-            <span class="stat-title">Sesiones Activas</span>
-            <span class="stat-number green">{{ activeSessionsCount }}</span>
-            <span class="stat-sub">{{ activeSessionsCount }} contenedores en ejecución</span>
+
+          <div class="milicic-stat-card highlight">
+            <div class="milicic-circle-badge orange">
+              <span class="circle-number">{{ activeSessionsCount }}</span>
+            </div>
+            <span class="stat-main-label">Sesiones Activas</span>
+            <span class="stat-sub-label">{{ activeSessionsCount }} contenedores en ejecución</span>
           </div>
-          <div class="stat-box">
-            <span class="stat-title">RAM Ahorrada (On-Demand)</span>
-            <span class="stat-number teal">{{ ramSavedGb }} GB</span>
-            <span class="stat-sub">{{ standbyCount }} quioscos en espera (0% RAM)</span>
+
+          <div class="milicic-stat-card">
+            <div class="milicic-circle-badge">
+              <span class="circle-number">{{ ramSavedGb }}</span>
+            </div>
+            <span class="stat-main-label">RAM Ahorrada (GB)</span>
+            <span class="stat-sub-label">{{ standbyCount }} quioscos en espera (0% RAM)</span>
           </div>
-          <div class="stat-box">
-            <span class="stat-title">Puertos Asignados</span>
-            <span class="stat-number">{{ kiosks.length }} / 30</span>
-            <span class="stat-sub">Rango :33891 - :33920</span>
+
+          <div class="milicic-stat-card">
+            <div class="milicic-circle-badge">
+              <span class="circle-number">{{ kiosks.length }}/30</span>
+            </div>
+            <span class="stat-main-label">Puertos RDP</span>
+            <span class="stat-sub-label">Pool asignado :33891 - :33920</span>
           </div>
         </div>
 
-        <!-- MAIN TABLE PANEL (Full Width - Tree panel removed as requested) -->
+        <!-- MAIN TABLE PANEL (Full Width) -->
         <div class="jms-table-panel">
-          <!-- JUMPSERVER QUICK FILTER ROWS (ESTADO, TIPO) -->
+          <!-- QUICK FILTER ROWS (ESTADO, TIPO) -->
           <div class="jms-quick-filters">
             <div class="filter-row">
               <span class="filter-row-label">ESTADO DE SESIÓN</span>
@@ -844,16 +855,16 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- ACTION TOOLBAR (JumpServer Signature Teal Button + Tools) -->
+          <!-- ACTION TOOLBAR (Milicic Orange Button + Tools) -->
           <div class="jms-toolbar">
             <div class="toolbar-left">
-              <!-- + Crear Button -->
+              <!-- + Crear Button (Milicic Orange) -->
               <button class="jms-btn jms-btn-primary" @click="showCreateModal = true">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="12" y1="5" x2="12" y2="19"/>
                   <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
-                Crear
+                Crear Quiosco
               </button>
 
               <!-- Refrescar Button -->
@@ -909,7 +920,7 @@ onUnmounted(() => {
                   </svg>
                 </button>
 
-                <button class="icon-tool-btn" title="Ajustes" @click="showSettingsModal = true">
+                <button class="icon-tool-btn" title="Ajustes y Políticas" @click="openSettingsModal">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"/>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -919,7 +930,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- JUMPSERVER ASSETS TABLE -->
+          <!-- ASSETS TABLE -->
           <div class="table-scroll-container">
             <table class="jms-data-table">
               <thead>
@@ -964,10 +975,9 @@ onUnmounted(() => {
                     </div>
                   </td>
 
-                  <!-- Plataforma (Windows Icon & Badge like screenshot) -->
+                  <!-- Plataforma (Windows Icon & Badge) -->
                   <td class="cell-platform">
                     <div class="platform-badge">
-                      <!-- Windows 4 Squares Icon -->
                       <svg class="win-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.951-1.802"/>
                       </svg>
@@ -975,10 +985,10 @@ onUnmounted(() => {
                     </div>
                   </td>
 
-                  <!-- Conexión (JumpServer Teal Monitor Icon + Port) -->
+                  <!-- Conexión (Port Chip) -->
                   <td class="cell-connection">
                     <div class="connection-group">
-                      <svg class="jms-monitor-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <svg class="conn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                         <line x1="8" y1="21" x2="16" y2="21"/>
                         <line x1="12" y1="17" x2="12" y2="21"/>
@@ -1019,7 +1029,7 @@ onUnmounted(() => {
                     </div>
                   </td>
 
-                  <!-- Operaciones (JumpServer Action Buttons) -->
+                  <!-- Operaciones (Action Buttons) -->
                   <td class="cell-actions" style="text-align: right;">
                     <div class="actions-group">
                       <!-- Conectar en Luna (Primary Eye Button) -->
@@ -1075,7 +1085,7 @@ onUnmounted(() => {
             </table>
           </div>
 
-          <!-- TABLE PAGINATION FOOTER (JumpServer Element Plus Style) -->
+          <!-- TABLE PAGINATION FOOTER -->
           <div class="jms-pagination">
             <div class="pagination-total">
               Total {{ filteredKiosks.length }}
@@ -1347,19 +1357,19 @@ onUnmounted(() => {
   background-color: var(--jms-bg-page);
 }
 
-/* TOP NAVBAR (#148F76) */
+/* TOP NAVBAR (Milicic Dark Slate #2A343D) */
 .jms-navbar {
   height: var(--header-height);
-  background-color: var(--jms-primary);
+  background-color: var(--jms-header-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 20px;
   color: #ffffff;
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 .jms-navbar-left {
@@ -1370,55 +1380,50 @@ onUnmounted(() => {
 .jms-brand-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.milicic-brand-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.jms-brand-divider {
+  color: rgba(255, 255, 255, 0.25);
+  font-weight: 300;
+  font-size: 15px;
 }
 
 .jms-logo-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: var(--milicic-orange);
 }
 
 .jms-brand-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: #ffffff;
 }
 
-.jms-brand-divider {
-  color: rgba(255, 255, 255, 0.4);
-  font-weight: 300;
-  font-size: 14px;
-}
-
-/* Milicic Logo inside Topbar */
-.milicic-badge {
-  display: flex;
-  align-items: center;
-  background: #ffffff;
-  padding: 3px 8px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-}
-
 .jms-brand-badge {
-  font-size: 11px;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.18);
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--milicic-orange);
   color: #ffffff;
   padding: 2px 7px;
   border-radius: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 /* Center Search */
 .jms-navbar-center {
   flex: 1;
-  max-width: 360px;
-  margin: 0 20px;
+  max-width: 380px;
+  margin: 0 24px;
 }
 
 .jms-global-search {
@@ -1430,36 +1435,36 @@ onUnmounted(() => {
 .jms-global-search .search-icon {
   position: absolute;
   left: 10px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.6);
   pointer-events: none;
 }
 
 .jms-global-search .search-input {
   width: 100%;
-  height: 30px;
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
   padding: 0 54px 0 32px;
   color: #ffffff;
   font-size: 12px;
 }
 
 .jms-global-search .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .jms-global-search .search-input:focus {
-  background: rgba(0, 0, 0, 0.25);
-  border-color: #ffffff;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.35);
+  border-color: var(--milicic-orange);
+  box-shadow: 0 0 0 2px rgba(243, 146, 0, 0.3);
 }
 
 .search-kbd {
   position: absolute;
   right: 8px;
   font-size: 10px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   padding: 2px 5px;
   border-radius: 3px;
   color: #ffffff;
@@ -1479,33 +1484,33 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 6px;
   color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
 }
 
 .jms-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
 }
 
 .badge-counter {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  background: #67c23a;
+  top: 1px;
+  right: 1px;
+  background: var(--milicic-orange);
   color: white;
   font-size: 10px;
-  font-weight: bold;
-  min-width: 14px;
-  height: 14px;
-  border-radius: 7px;
+  font-weight: 700;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 3px;
-  border: 1px solid var(--jms-primary);
+  border: 1px solid var(--jms-header-bg);
 }
 
 .jms-lang-selector {
@@ -1513,14 +1518,14 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  padding: 4px 8px;
+  padding: 5px 8px;
   border-radius: 4px;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.9);
 }
 
 .jms-lang-selector:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .jms-user-profile {
@@ -1535,13 +1540,13 @@ onUnmounted(() => {
 }
 
 .jms-user-profile:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .jms-avatar {
-  width: 24px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.25);
+  width: 26px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1560,25 +1565,26 @@ onUnmounted(() => {
   margin-top: 6px;
   background: #ffffff;
   color: var(--jms-text-primary);
-  border: 1px solid var(--jms-border-extra-light);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  min-width: 170px;
+  border: 1px solid var(--jms-border-base);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  min-width: 200px;
   padding: 6px 0;
   z-index: 1050;
 }
 
 .dropdown-item {
-  padding: 8px 14px;
+  padding: 9px 14px;
   font-size: 13px;
   cursor: pointer;
   display: block;
   color: var(--jms-text-regular);
+  transition: all 0.15s;
 }
 
 .dropdown-item:hover {
-  background: var(--jms-primary-light);
-  color: var(--jms-primary);
+  background: var(--milicic-orange-light);
+  color: var(--milicic-orange);
 }
 
 .dropdown-item.danger {
@@ -1598,18 +1604,19 @@ onUnmounted(() => {
 /* Toast */
 .jms-toast {
   position: fixed;
-  top: 60px;
+  top: 66px;
   right: 20px;
   background: #ffffff;
-  padding: 10px 16px;
-  border-radius: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 12px 18px;
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 13px;
+  font-weight: 500;
   z-index: 2000;
-  border-left: 4px solid var(--jms-primary);
+  border-left: 4px solid var(--milicic-orange);
 }
 
 .jms-toast.error {
@@ -1626,25 +1633,27 @@ onUnmounted(() => {
 .jms-sidebar {
   width: var(--sidebar-width);
   background: #ffffff;
-  border-right: 1px solid var(--jms-border-extra-light);
+  border-right: 1px solid var(--jms-border-base);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
 }
 
 .sidebar-header {
-  height: 48px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 18px;
   border-bottom: 1px solid var(--jms-border-extra-light);
 }
 
 .sidebar-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--jms-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--milicic-slate);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .sidebar-toggle-btn {
@@ -1660,10 +1669,10 @@ onUnmounted(() => {
 
 .nav-section-title {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--jms-text-secondary);
-  padding: 10px 16px 4px;
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--milicic-gray-light);
+  padding: 12px 18px 4px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -1671,9 +1680,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 16px;
+  padding: 9px 18px;
   font-size: 13px;
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
   cursor: pointer;
   transition: all 0.15s;
   text-decoration: none;
@@ -1681,15 +1690,15 @@ onUnmounted(() => {
 
 .nav-item:hover {
   background-color: var(--jms-bg-hover);
-  color: var(--jms-primary);
+  color: var(--milicic-dark);
 }
 
-/* Active Nav Item: Light Teal Background + Teal Text (Matches screenshot) */
+/* Active Nav Item: Milicic Soft Orange Glow + Orange Indicator */
 .nav-item.active {
-  background-color: var(--jms-primary-light);
-  color: var(--jms-primary);
+  background-color: var(--milicic-orange-light);
+  color: var(--milicic-orange);
   font-weight: 600;
-  border-right: 3px solid var(--jms-primary);
+  border-right: 3px solid var(--milicic-orange);
 }
 
 .nav-icon {
@@ -1698,28 +1707,28 @@ onUnmounted(() => {
 }
 
 .nav-icon.active-green {
-  color: #67c23a;
+  color: var(--milicic-orange);
 }
 
 .nav-badge {
   margin-left: auto;
   font-size: 11px;
-  font-weight: 500;
-  padding: 1px 6px;
+  font-weight: 600;
+  padding: 1px 7px;
   border-radius: 10px;
   background: var(--jms-border-extra-light);
   color: var(--jms-text-secondary);
 }
 
-.nav-badge.green {
-  background: var(--jms-success-light);
-  color: var(--jms-success);
-  font-weight: bold;
+.nav-badge.orange {
+  background: var(--milicic-orange-light);
+  color: var(--milicic-orange);
+  font-weight: 700;
 }
 
 .nav-badge.gray {
-  background: #f0f2f5;
-  color: #909399;
+  background: #f1f3f5;
+  color: var(--milicic-gray-light);
 }
 
 /* MAIN CONTENT AREA */
@@ -1727,98 +1736,101 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 16px 20px;
+  padding: 18px 24px;
   overflow-x: hidden;
 }
 
 /* Header & Breadcrumb */
 .jms-content-header {
   background: #ffffff;
-  border: 1px solid var(--jms-border-extra-light);
-  border-radius: 4px;
-  padding: 14px 16px 0;
-  margin-bottom: 12px;
+  border: 1px solid var(--jms-border-base);
+  border-radius: 6px;
+  padding: 16px 20px 0;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .content-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .title-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .back-btn {
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 6px;
   border-radius: 4px;
 }
 
 .back-btn:hover {
   background: var(--jms-bg-hover);
-  color: var(--jms-primary);
+  color: var(--milicic-orange);
 }
 
 .title-left h2 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--jms-text-primary);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--milicic-dark);
 }
 
 .title-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .link-btn {
   font-size: 12px;
-  color: var(--jms-text-regular);
+  font-weight: 500;
+  color: var(--milicic-gray);
   border: 1px solid var(--jms-border-base);
-  border-radius: 4px;
-  padding: 4px 10px;
+  border-radius: 6px;
+  padding: 5px 12px;
   background: #ffffff;
+  transition: all 0.15s ease;
 }
 
 .link-btn:hover {
-  border-color: var(--jms-primary);
-  color: var(--jms-primary);
+  border-color: var(--milicic-orange);
+  color: var(--milicic-orange);
 }
 
 /* Tabs */
 .jms-tabs {
   display: flex;
-  gap: 24px;
-  border-bottom: 1px solid var(--jms-border-extra-light);
+  gap: 28px;
+  border-bottom: 1px solid var(--jms-border-base);
 }
 
 .tab-item {
   font-size: 13px;
   font-weight: 500;
-  color: var(--jms-text-regular);
-  padding: 8px 0;
+  color: var(--milicic-gray);
+  padding: 10px 0;
   border-bottom: 2px solid transparent;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 .tab-item:hover {
-  color: var(--jms-primary);
+  color: var(--milicic-dark);
 }
 
 .tab-item.active {
-  color: var(--jms-primary);
+  color: var(--milicic-orange);
   font-weight: 600;
-  border-bottom-color: var(--jms-primary);
+  border-bottom-color: var(--milicic-orange);
 }
 
 .tab-info-icon {
@@ -1826,107 +1838,138 @@ onUnmounted(() => {
   color: var(--jms-text-secondary);
 }
 
-/* Stats Overview */
-.stats-overview-grid {
+/* MILICIC STATS GRID (Circular Achievements Design) */
+.milicic-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
-.stat-box {
+.milicic-stat-card {
   background: #ffffff;
-  border: 1px solid var(--jms-border-extra-light);
-  border-radius: 4px;
-  padding: 12px 16px;
+  border: 1px solid var(--jms-border-base);
+  border-radius: 8px;
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
 }
 
-.stat-title {
-  font-size: 12px;
-  color: var(--jms-text-secondary);
-  text-transform: uppercase;
-  font-weight: 600;
+.milicic-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.stat-number {
-  font-size: 22px;
+.milicic-stat-card.highlight {
+  border-color: var(--milicic-orange-border);
+  background: linear-gradient(180deg, #FFFFFF 0%, #FFFDF9 100%);
+}
+
+.milicic-circle-badge {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 3px solid var(--milicic-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  background: var(--milicic-orange-light);
+}
+
+.milicic-circle-badge.orange {
+  background: var(--milicic-orange);
+  border-color: var(--milicic-orange);
+}
+
+.milicic-circle-badge.orange .circle-number {
+  color: #ffffff;
+}
+
+.circle-number {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--milicic-dark);
+  letter-spacing: -0.02em;
+}
+
+.stat-main-label {
+  font-size: 14px;
   font-weight: 700;
-  color: var(--jms-text-primary);
-  margin: 2px 0;
+  color: var(--milicic-dark);
+  margin-bottom: 3px;
 }
 
-.stat-number.green {
-  color: var(--jms-success);
-}
-
-.stat-number.teal {
-  color: var(--jms-primary);
-}
-
-.stat-sub {
-  font-size: 11px;
-  color: var(--jms-text-secondary);
+.stat-sub-label {
+  font-size: 12px;
+  color: var(--milicic-gray-light);
 }
 
 /* FULL-WIDTH TABLE PANEL */
 .jms-table-panel {
   flex: 1;
   background: #ffffff;
-  border: 1px solid var(--jms-border-extra-light);
-  border-radius: 4px;
+  border: 1px solid var(--jms-border-base);
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 /* QUICK FILTERS ROWS */
 .jms-quick-filters {
-  padding: 12px 16px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--jms-border-extra-light);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   font-size: 12px;
 }
 
 .filter-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .filter-row-label {
   font-size: 11px;
   font-weight: 700;
-  color: var(--jms-text-secondary);
+  color: var(--milicic-gray-light);
   width: 140px;
   flex-shrink: 0;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .filter-links {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .filter-link {
   font-size: 12px;
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
 }
 
 .filter-link:hover {
-  color: var(--jms-primary);
+  color: var(--milicic-orange);
 }
 
 .filter-link.active {
-  color: var(--jms-primary);
+  color: var(--milicic-orange);
+  background: var(--milicic-orange-light);
   font-weight: 700;
 }
 
@@ -1937,53 +1980,56 @@ onUnmounted(() => {
 
 /* TOOLBAR */
 .jms-toolbar {
-  padding: 10px 16px;
+  padding: 12px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--jms-border-extra-light);
   background: #ffffff;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 .toolbar-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-/* JumpServer Buttons */
+/* Milicic Styled Buttons */
 .jms-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 4px;
-  transition: all 0.2s;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .jms-btn-primary {
-  background-color: var(--jms-primary);
+  background-color: var(--milicic-orange);
   color: #ffffff;
+  box-shadow: 0 2px 6px rgba(243, 146, 0, 0.25);
 }
 
 .jms-btn-primary:hover {
-  background-color: var(--jms-primary-hover);
+  background-color: var(--milicic-orange-hover);
+  box-shadow: 0 4px 10px rgba(243, 146, 0, 0.35);
+  transform: translateY(-1px);
 }
 
 .jms-btn-default {
   background-color: #ffffff;
-  color: var(--jms-text-regular);
+  color: var(--milicic-slate);
   border: 1px solid var(--jms-border-base);
 }
 
 .jms-btn-default:hover {
-  color: var(--jms-primary);
-  border-color: var(--jms-primary);
-  background-color: var(--jms-primary-light);
+  color: var(--milicic-orange);
+  border-color: var(--milicic-orange);
+  background-color: var(--milicic-orange-light);
 }
 
 .dropdown-wrapper {
@@ -1994,34 +2040,34 @@ onUnmounted(() => {
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: 4px;
+  margin-top: 6px;
   background: #ffffff;
-  border: 1px solid var(--jms-border-extra-light);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  min-width: 220px;
+  border: 1px solid var(--jms-border-base);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  min-width: 230px;
   z-index: 500;
-  padding: 4px 0;
+  padding: 6px 0;
 }
 
 .dropdown-menu-item {
-  padding: 8px 14px;
+  padding: 8px 16px;
   font-size: 12px;
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
   cursor: pointer;
   display: block;
 }
 
 .dropdown-menu-item:hover {
-  background: var(--jms-primary-light);
-  color: var(--jms-primary);
+  background: var(--milicic-orange-light);
+  color: var(--milicic-orange);
 }
 
 /* Toolbar Right */
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .table-search-box {
@@ -2032,22 +2078,22 @@ onUnmounted(() => {
 
 .search-tag-icon {
   position: absolute;
-  left: 8px;
+  left: 9px;
   color: var(--jms-text-placeholder);
 }
 
 .toolbar-search-input {
-  width: 190px;
-  height: 28px;
-  padding: 0 24px 0 26px;
+  width: 200px;
+  height: 32px;
+  padding: 0 26px 0 28px;
   font-size: 12px;
   border: 1px solid var(--jms-border-base);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .clear-btn {
   position: absolute;
-  right: 6px;
+  right: 8px;
   color: var(--jms-text-placeholder);
   font-size: 14px;
 }
@@ -2055,24 +2101,25 @@ onUnmounted(() => {
 .toolbar-tool-icons {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .icon-tool-btn {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--jms-border-base);
-  border-radius: 4px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
   background: #ffffff;
+  transition: all 0.15s;
 }
 
 .icon-tool-btn:hover {
-  border-color: var(--jms-primary);
-  color: var(--jms-primary);
+  border-color: var(--milicic-orange);
+  color: var(--milicic-orange);
 }
 
 /* DATA TABLE */
@@ -2088,18 +2135,20 @@ onUnmounted(() => {
 
 .jms-data-table th {
   background: var(--jms-bg-table-header);
-  color: var(--jms-text-regular);
+  color: var(--milicic-slate);
   font-size: 12px;
-  font-weight: 600;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--jms-border-extra-light);
+  font-weight: 700;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--jms-border-base);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .jms-data-table td {
-  padding: 12px 14px;
+  padding: 14px 16px;
   font-size: 13px;
   border-bottom: 1px solid var(--jms-border-extra-light);
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
 }
 
 .jms-data-table .table-row:hover {
@@ -2108,12 +2157,14 @@ onUnmounted(() => {
 
 /* Asset Cell */
 .cell-asset .asset-name {
-  font-weight: 600;
-  color: #1890ff;
+  font-weight: 700;
+  color: var(--milicic-dark);
   font-size: 13px;
+  transition: color 0.15s;
 }
 
 .cell-asset .asset-name:hover {
+  color: var(--milicic-orange);
   text-decoration: underline;
 }
 
@@ -2122,47 +2173,49 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: var(--jms-text-secondary);
-  margin-top: 2px;
+  color: var(--milicic-gray-light);
+  margin-top: 3px;
 }
 
 .asset-id-tag {
-  background: #f0f2f5;
-  padding: 0 4px;
-  border-radius: 2px;
+  background: #f1f3f5;
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 
-/* Platform Cell (Matches screenshot Windows icon) */
+/* Platform Cell */
 .platform-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: var(--jms-text-primary);
+  color: var(--milicic-dark);
 }
 
 .win-icon {
   color: #0078d7;
 }
 
-/* Connection Cell (JumpServer Monitor Icon) */
+/* Connection Cell */
 .connection-group {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.jms-monitor-icon {
-  color: var(--jms-primary);
+.conn-icon {
+  color: var(--milicic-gray-light);
 }
 
 .port-chip {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: var(--jms-primary-light);
-  color: var(--jms-primary);
-  padding: 1px 6px;
-  border-radius: 3px;
+  font-weight: 600;
+  background: var(--milicic-orange-light);
+  color: var(--milicic-orange);
+  border: 1px solid var(--milicic-orange-border);
+  padding: 2px 7px;
+  border-radius: 4px;
 }
 
 /* Lifecycle Badges */
@@ -2171,19 +2224,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 12px;
 }
 
 .status-pill.running {
   background: var(--jms-success-light);
   color: var(--jms-success);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .status-pill.idle {
-  background: #f4f4f5;
-  color: var(--jms-text-secondary);
+  background: #f1f3f5;
+  color: var(--milicic-gray-light);
 }
 
 .pulse-indicator {
@@ -2195,23 +2248,23 @@ onUnmounted(() => {
 }
 
 @keyframes pulse-dot {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(103, 194, 58, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(103, 194, 58, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(103, 194, 58, 0); }
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 161, 105, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(56, 161, 105, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 161, 105, 0); }
 }
 
 /* URL Cell */
 .url-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   max-width: 280px;
 }
 
 .url-text {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2226,9 +2279,9 @@ onUnmounted(() => {
 .probe-tag {
   display: inline-block;
   font-size: 10px;
-  font-weight: 500;
-  padding: 1px 5px;
-  border-radius: 2px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
 }
 
 .probe-tag.ok {
@@ -2246,41 +2299,42 @@ onUnmounted(() => {
   color: var(--jms-danger);
 }
 
-/* Actions Group (JumpServer Circular Eye + Buttons) */
+/* Actions Group */
 .actions-group {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 5px;
 }
 
 .action-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
-  border: 1px solid var(--jms-border-extra-light);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--jms-border-base);
   background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
   transition: all 0.15s;
 }
 
 .action-btn:hover {
-  border-color: var(--jms-primary);
-  color: var(--jms-primary);
-  background: var(--jms-primary-light);
+  border-color: var(--milicic-orange);
+  color: var(--milicic-orange);
+  background: var(--milicic-orange-light);
 }
 
 .action-btn.action-connect {
-  background: var(--jms-primary-light);
-  border-color: var(--jms-primary-light-border);
-  color: var(--jms-primary);
+  background: var(--milicic-orange-light);
+  border-color: var(--milicic-orange-border);
+  color: var(--milicic-orange);
+  font-weight: 600;
 }
 
 .action-btn.action-connect:hover {
-  background: var(--jms-primary);
+  background: var(--milicic-orange);
   color: #ffffff;
 }
 
@@ -2293,23 +2347,23 @@ onUnmounted(() => {
 /* Empty Cell */
 .empty-cell {
   text-align: center;
-  padding: 40px !important;
+  padding: 48px !important;
 }
 
 .empty-state-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .empty-icon {
-  font-size: 24px;
+  font-size: 28px;
 }
 
 .empty-text {
   font-size: 13px;
-  color: var(--jms-text-secondary);
+  color: var(--milicic-gray-light);
 }
 
 /* PAGINATION FOOTER */
@@ -2317,10 +2371,10 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  border-top: 1px solid var(--jms-border-extra-light);
+  padding: 12px 20px;
+  border-top: 1px solid var(--jms-border-base);
   font-size: 12px;
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
 }
 
 .pagination-controls {
@@ -2334,29 +2388,30 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   border: 1px solid var(--jms-border-base);
-  border-radius: 4px;
-  padding: 2px 8px;
+  border-radius: 6px;
+  padding: 3px 10px;
   font-size: 12px;
   cursor: pointer;
 }
 
 .page-btn {
-  min-width: 24px;
-  height: 24px;
+  min-width: 26px;
+  height: 26px;
   border: 1px solid var(--jms-border-base);
-  border-radius: 4px;
+  border-radius: 6px;
   background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: var(--jms-text-regular);
+  color: var(--milicic-gray);
 }
 
 .page-btn.active {
-  background: var(--jms-primary);
+  background: var(--milicic-orange);
   color: #ffffff;
-  border-color: var(--jms-primary);
+  border-color: var(--milicic-orange);
+  font-weight: 700;
 }
 
 .page-btn:disabled {
@@ -2364,11 +2419,12 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-/* MODALS (JumpServer Element Plus Style) */
+/* MODALS */
 .jms-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(26, 32, 38, 0.6);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2377,44 +2433,92 @@ onUnmounted(() => {
 
 .jms-modal-dialog {
   background: #ffffff;
-  border-radius: 4px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
   width: 90%;
   max-width: 520px;
   overflow: hidden;
 }
 
+.jms-modal-dialog-lg {
+  max-width: 600px;
+}
+
 .modal-head {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--jms-border-extra-light);
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--jms-border-base);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  background: #F8F9FA;
 }
 
 .modal-head-title h3 {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--jms-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--milicic-dark);
 }
 
 .modal-head-title p {
   font-size: 12px;
-  color: var(--jms-text-secondary);
-  margin-top: 2px;
+  color: var(--milicic-gray-light);
+  margin-top: 3px;
 }
 
 .modal-close-btn {
-  font-size: 20px;
-  color: var(--jms-text-secondary);
+  font-size: 22px;
+  color: var(--milicic-gray-light);
   cursor: pointer;
+  line-height: 1;
+}
+
+.modal-close-btn:hover {
+  color: var(--milicic-dark);
 }
 
 .modal-body-form {
-  padding: 18px 20px;
+  padding: 22px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed var(--jms-border-base);
+}
+
+.settings-section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--milicic-dark);
+  margin: 0;
+}
+
+.section-title-with-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badge-saving {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--milicic-orange);
+  background: var(--milicic-orange-light);
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--milicic-orange-border);
 }
 
 .form-item {
@@ -2425,7 +2529,7 @@ onUnmounted(() => {
 
 .form-row {
   display: flex;
-  gap: 12px;
+  gap: 14px;
 }
 
 .flex-1 { flex: 1; }
@@ -2433,35 +2537,44 @@ onUnmounted(() => {
 
 .form-label {
   font-size: 13px;
-  font-weight: 500;
-  color: var(--jms-text-primary);
+  font-weight: 600;
+  color: var(--milicic-dark);
 }
 
 .form-label.required::before {
   content: "* ";
-  color: var(--jms-danger);
+  color: var(--milicic-orange);
 }
 
-.label-with-test {
+.label-with-calc, .label-with-test {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.calc-badge {
+  font-size: 11px;
+  color: var(--milicic-orange);
+  font-weight: 600;
+  background: var(--milicic-orange-light);
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+
 .inline-test-btn {
   font-size: 11px;
-  color: var(--jms-primary);
-  font-weight: 600;
+  color: var(--milicic-orange);
+  font-weight: 700;
 }
 
 .field-hint {
   font-size: 11px;
-  color: var(--jms-text-secondary);
+  color: var(--milicic-gray-light);
 }
 
 .inline-probe-alert {
-  padding: 6px 10px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: 6px;
   font-size: 12px;
   margin-top: 4px;
 }
@@ -2479,63 +2592,9 @@ onUnmounted(() => {
 .modal-foot {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--jms-border-extra-light);
-}
-
-.jms-modal-dialog-lg {
-  max-width: 580px;
-}
-
-.settings-section {
-  display: flex;
-  flex-direction: column;
   gap: 12px;
-  padding-bottom: 14px;
-  border-bottom: 1px dashed var(--jms-border-extra-light);
-}
-
-.settings-section:last-of-type {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.settings-section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--jms-text-primary);
-  margin: 0;
-}
-
-.section-title-with-badge {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.badge-saving {
-  font-size: 11px;
-  font-weight: 600;
-  color: #148F76;
-  background: rgba(20, 143, 118, 0.12);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.label-with-calc {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.calc-badge {
-  font-size: 11px;
-  color: var(--jms-primary);
-  font-weight: 600;
-  background: rgba(20, 143, 118, 0.08);
-  padding: 1px 7px;
-  border-radius: 3px;
+  padding-top: 12px;
+  border-top: 1px solid var(--jms-border-base);
 }
 
 .spinning {
@@ -2548,7 +2607,7 @@ onUnmounted(() => {
 }
 
 .fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.25s ease;
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
