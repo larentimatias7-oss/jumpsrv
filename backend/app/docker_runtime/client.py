@@ -206,3 +206,23 @@ class DockerRuntime:
         except Exception as e:
             logger.debug(f"Docker connection unavailable when inspecting {container_name}: {e}")
             return {"exists": False, "status": "docker_offline", "health": "unknown", "is_running": False}
+
+    def count_running_containers(self) -> int:
+        """Count how many managed kiosk containers are currently running on the host."""
+        try:
+            containers = self.client.containers.list(
+                filters={"label": f"{LABEL_MANAGED_BY}={LABEL_VALUE}", "status": "running"}
+            )
+            return len(containers)
+        except Exception as e:
+            logger.warning(f"Failed to count running managed containers: {e}")
+            return 0
+
+    def is_container_running(self, container_name: str) -> bool:
+        """Check if a specific container exists and is in running state."""
+        try:
+            c = self.client.containers.get(container_name)
+            return c.status == "running"
+        except Exception:
+            return False
+

@@ -82,7 +82,8 @@ const getHeaders = () => {
 const lifecycleSettings = ref({
   disconnect_grace_seconds: 30,
   idle_timeout_seconds: 900,
-  max_session_lifetime_seconds: 14400
+  max_session_lifetime_seconds: 14400,
+  max_concurrent_sessions: 4
 })
 const loadingSettings = ref(false)
 const savingSettings = ref(false)
@@ -101,7 +102,8 @@ const fetchSettings = async () => {
       lifecycleSettings.value = {
         disconnect_grace_seconds: data.disconnect_grace_seconds ?? 30,
         idle_timeout_seconds: data.idle_timeout_seconds ?? 900,
-        max_session_lifetime_seconds: data.max_session_lifetime_seconds ?? 14400
+        max_session_lifetime_seconds: data.max_session_lifetime_seconds ?? 14400,
+        max_concurrent_sessions: data.max_concurrent_sessions ?? 4
       }
     }
   } catch (err) {
@@ -115,6 +117,7 @@ const saveAllSettings = async () => {
   const grace = Number(lifecycleSettings.value.disconnect_grace_seconds)
   const idle = Number(lifecycleSettings.value.idle_timeout_seconds)
   const maxLife = Number(lifecycleSettings.value.max_session_lifetime_seconds)
+  const maxConcurrent = Number(lifecycleSettings.value.max_concurrent_sessions)
 
   if (isNaN(grace) || grace < 5 || grace > 3600) {
     showToast('Tiempo de gracia inválido (debe ser entre 5 y 3600 segundos)', 'error')
@@ -126,6 +129,10 @@ const saveAllSettings = async () => {
   }
   if (isNaN(maxLife) || maxLife < 60 || maxLife > 604800) {
     showToast('Límite máximo de sesión inválido (debe ser entre 60 y 604800 segundos)', 'error')
+    return
+  }
+  if (isNaN(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 100) {
+    showToast('Límite de concurrencia inválido (debe ser entre 1 y 100 sesiones)', 'error')
     return
   }
 
@@ -140,7 +147,8 @@ const saveAllSettings = async () => {
       body: JSON.stringify({
         disconnect_grace_seconds: grace,
         idle_timeout_seconds: idle,
-        max_session_lifetime_seconds: maxLife
+        max_session_lifetime_seconds: maxLife,
+        max_concurrent_sessions: maxConcurrent
       })
     })
     if (res.ok) {
@@ -1278,6 +1286,24 @@ onUnmounted(() => {
               />
               <span class="field-hint">
                 Límite máximo continuo ininterrumpido. Al cumplirse, se fuerza el cierre para liberar memoria RAM (por defecto: 14400s / 4h).
+              </span>
+            </div>
+
+            <!-- 4. Límite de concurrencia máxima simultánea -->
+            <div class="form-item">
+              <div class="label-with-calc">
+                <label class="form-label required">Límite de Concurrencia Simultánea (sesiones)</label>
+                <span class="calc-badge">Protección RAM Host</span>
+              </div>
+              <input 
+                v-model.number="lifecycleSettings.max_concurrent_sessions" 
+                type="number" 
+                min="1" 
+                max="100" 
+                required 
+              />
+              <span class="field-hint">
+                Máximo de quioscos ejecutándose en simultáneo en el host. Previene saturación de RAM y caídas por OOM (por defecto: 4).
               </span>
             </div>
           </div>

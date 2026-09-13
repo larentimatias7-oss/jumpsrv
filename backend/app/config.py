@@ -17,6 +17,7 @@ logger = logging.getLogger("kiosk.config")
 DEFAULT_DISCONNECT_GRACE_SECONDS = int(os.getenv("KIOSK_DISCONNECT_GRACE_SECONDS", "30"))
 DEFAULT_IDLE_TIMEOUT_SECONDS = int(os.getenv("KIOSK_IDLE_TIMEOUT_SECONDS", "900"))
 DEFAULT_MAX_SESSION_LIFETIME_SECONDS = int(os.getenv("KIOSK_MAX_SESSION_LIFETIME_SECONDS", "14400"))
+DEFAULT_MAX_CONCURRENT_SESSIONS = int(os.getenv("KIOSK_MAX_CONCURRENT_SESSIONS", "4"))
 
 
 class SessionLifecycleSettings(BaseModel):
@@ -38,6 +39,12 @@ class SessionLifecycleSettings(BaseModel):
         le=604800,
         description="Absolute maximum lifetime of a continuous session in seconds",
     )
+    max_concurrent_sessions: int = Field(
+        default=DEFAULT_MAX_CONCURRENT_SESSIONS,
+        ge=1,
+        le=100,
+        description="Maximum concurrent active kiosk sessions allowed on host",
+    )
 
 
 def get_lifecycle_settings(db_factory=None) -> SessionLifecycleSettings:
@@ -49,6 +56,7 @@ def get_lifecycle_settings(db_factory=None) -> SessionLifecycleSettings:
     grace = int(os.getenv("KIOSK_DISCONNECT_GRACE_SECONDS", str(DEFAULT_DISCONNECT_GRACE_SECONDS)))
     idle = int(os.getenv("KIOSK_IDLE_TIMEOUT_SECONDS", str(DEFAULT_IDLE_TIMEOUT_SECONDS)))
     max_life = int(os.getenv("KIOSK_MAX_SESSION_LIFETIME_SECONDS", str(DEFAULT_MAX_SESSION_LIFETIME_SECONDS)))
+    max_concurrent = int(os.getenv("KIOSK_MAX_CONCURRENT_SESSIONS", str(DEFAULT_MAX_CONCURRENT_SESSIONS)))
 
     try:
         from app.models.database import SystemSettingModel
@@ -58,6 +66,7 @@ def get_lifecycle_settings(db_factory=None) -> SessionLifecycleSettings:
                     "disconnect_grace_seconds",
                     "idle_timeout_seconds",
                     "max_session_lifetime_seconds",
+                    "max_concurrent_sessions",
                 ])
             ).all()
             for r in records:
@@ -67,6 +76,8 @@ def get_lifecycle_settings(db_factory=None) -> SessionLifecycleSettings:
                     idle = int(r.value)
                 elif r.key == "max_session_lifetime_seconds":
                     max_life = int(r.value)
+                elif r.key == "max_concurrent_sessions":
+                    max_concurrent = int(r.value)
     except Exception as e:
         logger.warning(f"Could not load lifecycle settings from database, using defaults: {e}")
 
@@ -74,6 +85,7 @@ def get_lifecycle_settings(db_factory=None) -> SessionLifecycleSettings:
         disconnect_grace_seconds=grace,
         idle_timeout_seconds=idle,
         max_session_lifetime_seconds=max_life,
+        max_concurrent_sessions=max_concurrent,
     )
 
 
@@ -90,6 +102,7 @@ def save_lifecycle_settings(settings: SessionLifecycleSettings, db_factory=None)
                 "disconnect_grace_seconds": str(settings.disconnect_grace_seconds),
                 "idle_timeout_seconds": str(settings.idle_timeout_seconds),
                 "max_session_lifetime_seconds": str(settings.max_session_lifetime_seconds),
+                "max_concurrent_sessions": str(settings.max_concurrent_sessions),
             }
             for k, v in data.items():
                 rec = session.query(SystemSettingModel).filter(SystemSettingModel.key == k).first()
@@ -116,4 +129,5 @@ __all__ = [
     "DEFAULT_DISCONNECT_GRACE_SECONDS",
     "DEFAULT_IDLE_TIMEOUT_SECONDS",
     "DEFAULT_MAX_SESSION_LIFETIME_SECONDS",
+    "DEFAULT_MAX_CONCURRENT_SESSIONS",
 ]

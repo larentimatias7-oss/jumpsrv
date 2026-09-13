@@ -28,6 +28,7 @@ def update_settings(req: SessionLifecycleSettings):
             disconnect_grace_seconds=saved.disconnect_grace_seconds,
             idle_timeout_seconds=saved.idle_timeout_seconds,
             max_session_lifetime_seconds=saved.max_session_lifetime_seconds,
+            max_concurrent_sessions=saved.max_concurrent_sessions,
         )
     except Exception:
         pass

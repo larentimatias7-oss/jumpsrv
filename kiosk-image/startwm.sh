@@ -12,6 +12,17 @@ mkdir -p "$USER_DATA_DIR"
 # Clean stale Chromium locks from previous sessions/crashes
 rm -f "$USER_DATA_DIR"/Singleton*
 
+# Purge non-essential cache directories to prevent unbounded storage leaks
+# Strictly preserves Login Data (passwords), Cookies, and Preferences
+rm -rf "$USER_DATA_DIR"/Default/Cache* \
+       "$USER_DATA_DIR"/Default/"Code Cache" \
+       "$USER_DATA_DIR"/Default/GPUCache \
+       "$USER_DATA_DIR"/Default/ShaderCache \
+       "$USER_DATA_DIR"/Default/"Service Worker/CacheStorage" \
+       "$USER_DATA_DIR"/Default/"Service Worker/ScriptCache" \
+       "$USER_DATA_DIR"/GrShaderCache \
+       "$USER_DATA_DIR"/ShaderCache 2>/dev/null || true
+
 # Iniciar bus de sesión D-Bus si no existe
 if command -v dbus-launch >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
     eval $(dbus-launch --sh-syntax)
@@ -50,6 +61,10 @@ exec chromium \
   --no-default-browser-check \
   --password-store=basic \
   --enable-features=PasswordManager \
+  --disk-cache-size=33554432 \
+  --media-cache-size=16777216 \
+  --disable-application-cache \
+  --disable-gpu-program-cache \
   --no-sandbox \
   --disable-gpu \
   --disable-dev-shm-usage \

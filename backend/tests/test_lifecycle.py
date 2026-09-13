@@ -33,12 +33,14 @@ def test_settings_model_and_persistence(in_memory_db):
     assert settings.disconnect_grace_seconds == 30
     assert settings.idle_timeout_seconds == 900
     assert settings.max_session_lifetime_seconds == 14400
+    assert settings.max_concurrent_sessions == 4
 
     # Save custom settings
     custom = SessionLifecycleSettings(
         disconnect_grace_seconds=45,
         idle_timeout_seconds=600,
         max_session_lifetime_seconds=7200,
+        max_concurrent_sessions=2,
     )
     save_lifecycle_settings(custom, in_memory_db)
 
@@ -47,6 +49,7 @@ def test_settings_model_and_persistence(in_memory_db):
     assert updated.disconnect_grace_seconds == 45
     assert updated.idle_timeout_seconds == 600
     assert updated.max_session_lifetime_seconds == 7200
+    assert updated.max_concurrent_sessions == 2
 
 
 def test_settings_api_get_and_put(auth_headers):
@@ -59,12 +62,18 @@ def test_settings_api_get_and_put(auth_headers):
     assert "disconnect_grace_seconds" in data
     assert "idle_timeout_seconds" in data
     assert "max_session_lifetime_seconds" in data
+    assert "max_concurrent_sessions" in data
 
     # 2. PUT with invalid values (below bounds) should return 422
     invalid_res = client.put(
         "/api/settings",
         headers=auth_headers,
-        json={"disconnect_grace_seconds": 1, "idle_timeout_seconds": 10, "max_session_lifetime_seconds": 5},
+        json={
+            "disconnect_grace_seconds": 1,
+            "idle_timeout_seconds": 10,
+            "max_session_lifetime_seconds": 5,
+            "max_concurrent_sessions": 0,
+        },
     )
     assert invalid_res.status_code == 422
 
@@ -73,17 +82,20 @@ def test_settings_api_get_and_put(auth_headers):
         "disconnect_grace_seconds": 50,
         "idle_timeout_seconds": 1200,
         "max_session_lifetime_seconds": 18000,
+        "max_concurrent_sessions": 8,
     }
     put_res = client.put("/api/settings", headers=auth_headers, json=valid_payload)
     assert put_res.status_code == 200
     assert put_res.json()["disconnect_grace_seconds"] == 50
     assert put_res.json()["idle_timeout_seconds"] == 1200
     assert put_res.json()["max_session_lifetime_seconds"] == 18000
+    assert put_res.json()["max_concurrent_sessions"] == 8
 
     # 4. Verify GET reflects the changes
     get_again = client.get("/api/settings", headers=auth_headers)
     assert get_again.status_code == 200
     assert get_again.json()["disconnect_grace_seconds"] == 50
+    assert get_again.json()["max_concurrent_sessions"] == 8
 
 
 def test_dispatcher_lifecycle_configuration(in_memory_db):
@@ -94,20 +106,25 @@ def test_dispatcher_lifecycle_configuration(in_memory_db):
         disconnect_grace_seconds=15,
         idle_timeout_seconds=300,
         max_session_lifetime_seconds=3600,
+        max_concurrent_sessions=3,
     )
 
     assert dispatcher.disconnect_grace_seconds == 15
     assert dispatcher.idle_timeout_seconds == 300
     assert dispatcher.max_session_lifetime_seconds == 3600
+    assert dispatcher.max_concurrent_sessions == 3
 
     dispatcher.update_lifecycle_settings(
         disconnect_grace_seconds=20,
         idle_timeout_seconds=600,
         max_session_lifetime_seconds=7200,
+        max_concurrent_sessions=6,
     )
     assert dispatcher.disconnect_grace_seconds == 20
     assert dispatcher.idle_timeout_seconds == 600
     assert dispatcher.max_session_lifetime_seconds == 7200
+    assert dispatcher.max_concurrent_sessions == 6
+
 
 
 @pytest.mark.asyncio
@@ -312,3 +329,57 @@ async def test_dispatcher_max_lifetime_watchdog_termination(in_memory_db):
     with in_memory_db() as session:
         updated_k = session.query(KioskModel).get("test-kiosk-max")
         assert updated_k.status == "IDLE"
+
+
+@pytest.mark.asyncio
+async def test_dispatcher_concurrency_limit_enforcement(in_memory_db):
+    mock_docker = Mock(spec=DockerRuntime)
+    # Container is not currently running
+    mock_docker.is_container_running.return_value = False
+    # Host already has 4 running managed containers
+    mock_docker.count_running_containers.return_value = 4
+
+    dispatcher = KioskDispatcher(
+        db_factory=in_memory_db,
+        docker_runtime=mock_docker,
+        max_concurrent_sessions=4,
+    )
+
+    with in_memory_db() as session:
+        k = KioskModel(
+            id="test-kiosk-concurrency",
+            name="TEST-CONCURRENCY",
+            device_type="generic",
+            target_url="http://192.168.1.54",
+            target_ip="192.168.1.54",
+            target_port=80,
+            rdp_port=33895,
+            rdp_username="kiosk",
+            container_name="kiosk-test-concurrency",
+            volume_name="rdp_test_concurrency",
+            status="IDLE",
+        )
+        session.add(k)
+        session.commit()
+
+    mock_reader = Mock(spec=asyncio.StreamReader)
+    mock_writer = Mock(spec=asyncio.StreamWriter)
+
+    async def dummy_wait():
+        pass
+
+    mock_writer.wait_closed = Mock(side_effect=dummy_wait)
+
+    await dispatcher._handle_connection(
+        kiosk_id="test-kiosk-concurrency",
+        host_ip="127.0.0.1",
+        port=33895,
+        client_reader=mock_reader,
+        client_writer=mock_writer,
+    )
+
+    # Client connection should be rejected and closed without starting container
+    mock_writer.close.assert_called_once()
+    mock_docker.ensure_container_running.assert_not_called()
+    assert dispatcher.active_connections.get(33895, 0) == 0
+

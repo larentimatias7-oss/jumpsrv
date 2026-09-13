@@ -9,6 +9,7 @@ from ..config import (
     DEFAULT_DISCONNECT_GRACE_SECONDS,
     DEFAULT_IDLE_TIMEOUT_SECONDS,
     DEFAULT_MAX_SESSION_LIFETIME_SECONDS,
+    DEFAULT_MAX_CONCURRENT_SESSIONS,
 )
 from ..docker_runtime.client import DockerRuntime
 from ..models.database import KioskModel, init_db
@@ -35,6 +36,8 @@ class KioskDispatcher:
         forces socket closure, stops container, and marks asset IDLE.
       - Max Session Lifetime: If continuous session duration reaches max_session_lifetime_seconds
         (default 4h), terminates session and stops container to prevent orphan memory usage.
+      - Max Concurrent Sessions: Enforces host limit (default 4) of simultaneously running containers
+        to prevent memory exhaustion / OOM crashes.
     """
 
     def __init__(
@@ -44,6 +47,7 @@ class KioskDispatcher:
         disconnect_grace_seconds: Optional[int] = None,
         idle_timeout_seconds: Optional[int] = None,
         max_session_lifetime_seconds: Optional[int] = None,
+        max_concurrent_sessions: Optional[int] = None,
         idle_timeout: Optional[int] = None,  # Backward compatibility
     ):
         self.db_factory = db_factory or init_db()
@@ -67,6 +71,11 @@ class KioskDispatcher:
             if max_session_lifetime_seconds is not None
             else DEFAULT_MAX_SESSION_LIFETIME_SECONDS
         )
+        self.max_concurrent_sessions = (
+            int(max_concurrent_sessions)
+            if max_concurrent_sessions is not None
+            else DEFAULT_MAX_CONCURRENT_SESSIONS
+        )
 
         # Backward compatibility attribute
         self.idle_timeout = self.disconnect_grace_seconds
@@ -80,8 +89,9 @@ class KioskDispatcher:
         disconnect_grace_seconds: Optional[int] = None,
         idle_timeout_seconds: Optional[int] = None,
         max_session_lifetime_seconds: Optional[int] = None,
+        max_concurrent_sessions: Optional[int] = None,
     ):
-        """Update lifecycle timer thresholds dynamically in running dispatcher."""
+        """Update lifecycle timer thresholds and limits dynamically in running dispatcher."""
         if disconnect_grace_seconds is not None:
             self.disconnect_grace_seconds = int(disconnect_grace_seconds)
             self.idle_timeout = self.disconnect_grace_seconds
@@ -89,10 +99,13 @@ class KioskDispatcher:
             self.idle_timeout_seconds = int(idle_timeout_seconds)
         if max_session_lifetime_seconds is not None:
             self.max_session_lifetime_seconds = int(max_session_lifetime_seconds)
+        if max_concurrent_sessions is not None:
+            self.max_concurrent_sessions = int(max_concurrent_sessions)
 
         logger.info(
             f"Dispatcher lifecycle policies updated: disconnect_grace={self.disconnect_grace_seconds}s, "
-            f"idle_timeout={self.idle_timeout_seconds}s, max_session_lifetime={self.max_session_lifetime_seconds}s"
+            f"idle_timeout={self.idle_timeout_seconds}s, max_session_lifetime={self.max_session_lifetime_seconds}s, "
+            f"max_concurrent_sessions={self.max_concurrent_sessions}"
         )
 
     def _update_kiosk_status(self, kiosk_id: str, new_status: str):
@@ -188,6 +201,22 @@ class KioskDispatcher:
             target_url = kiosk.target_url
             rdp_user = kiosk.rdp_username
             clean_name = kiosk.name
+
+        # Prevent host memory exhaustion: enforce max concurrent running sessions
+        if not self.docker.is_container_running(container_name):
+            running_count = self.docker.count_running_containers()
+            if running_count >= self.max_concurrent_sessions:
+                logger.warning(
+                    f"[Concurrency Limit Exceeded] Rejecting connection to {container_name} on port {port}. "
+                    f"Active running sessions ({running_count}) reached maximum allowed ({self.max_concurrent_sessions})."
+                )
+                client_writer.close()
+                try:
+                    await client_writer.wait_closed()
+                except Exception:
+                    pass
+                self.active_connections[port] -= 1
+                return
 
         # 1. Just-In-Time container start
         logger.info(f"[Container starting...] Ensuring container {container_name} is running for {clean_name}...")

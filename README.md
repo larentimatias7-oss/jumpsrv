@@ -14,6 +14,7 @@ Permite acceder a consolas web de infraestructura crítica (Zabbix, switches, ro
   - **Ventana de Gracia tras Desconexión (`KIOSK_DISCONNECT_GRACE_SECONDS`, default 30s):** Tolera recargas de página (F5) y microcortes de red antes de apagar el contenedor (`docker stop`) y liberar RAM.
   - **Inactividad de Tráfico (`KIOSK_IDLE_TIMEOUT_SECONDS`, default 900s / 15 min):** Cierra sockets y detiene el contenedor si no hay tráfico RDP bidireccional.
   - **Límite Máximo Continuo (`KIOSK_MAX_SESSION_LIFETIME_SECONDS`, default 14400s / 4 horas):** Límite absoluto por sesión para impedir contenedores huérfanos.
+  - **Límite Preventivo de Concurrencia (`KIOSK_MAX_CONCURRENT_SESSIONS`, default 4):** Máximo de contenedores simultáneos para proteger la memoria RAM del host de caídas por OOM.
   - Límite de recursos estricto por sesión: `768 MB RAM`, `1 CPU`, `256 MB /dev/shm`.
 - **Configuración Dinámica de Políticas de Sesión:**
   - Ajustables en caliente vía API REST (`GET` / `PUT /api/settings`) y desde el portal web en "Ajustes del Sistema".
@@ -25,13 +26,17 @@ Permite acceder a consolas web de infraestructura crítica (Zabbix, switches, ro
 - **Auto-descubrimiento Cero Configuración:**
   - El backend accede a `/var/run/docker.sock` para inspeccionar el contenedor `jms_core` local, extrayendo o creando un `AccessKey` administrativo de forma automática y segura.
   - Detección automática de la IP del host y persistencia en `/app/data/jms_credentials.json`.
-- **Imagen de Quiosco Ultraligera (`pam-web-kiosk:latest`):**
+- **Imagen de Quiosco Ultraligera y Hardening Dinámico (`pam-web-kiosk:latest`):**
   - Basada en Debian 12 Bookworm Slim + Openbox + XorgXRDP + Chromium Native.
-  - Políticas gestionadas corporativas (`kiosk_policy.json`): bloquea atajos peligrosos, F12, descargas y navegación externa, habilitando el gestor de contraseñas integrado.
+  - Políticas gestionadas corporativas generadas dinámicamente en `entrypoint.sh`: bloquea esquemas internos (`chrome://*`, `file://*`, etc.), atajos de sistema, F12 (DevTools), descargas y accesos peligrosos, manteniendo activo el gestor de contraseñas.
+  - **Optimización de Almacenamiento:** Límites estrictos de caché (`--disk-cache-size=32MB`, `--media-cache-size=16MB`) y purga selectiva al inicio en `startwm.sh` conservando intactos `Login Data`, `Cookies` y `Preferences`.
   - Persistencia de credenciales y cookies mediante volúmenes Docker dedicados por dispositivo (`volume_name`), con etiquetas `managed-by=jumpserver-kiosk-manager`.
+- **Respaldos Automatizados SQLite WAL (`scripts/backup_database.sh`):**
+  - Copias en caliente online consistentes sin detener servicios mediante `.backup`.
+  - Rotación automatizada con retención de 7 días y verificación de integridad (`PRAGMA integrity_check`).
 - **Dashboard Web Corporativo (`:8080`):**
   - Frontend moderno construido con **Vue 3** y **Vite**, con interfaz limpia y modo oscuro/claro corporativo.
-  - **Panel de Ajustes del Sistema:** Modifica credenciales y los 3 temporizadores de ciclo de vida con validación en vivo.
+  - **Panel de Ajustes del Sistema:** Modifica credenciales, cuota de concurrencia y temporizadores de ciclo de vida con validación en vivo.
   - **Edición en Caliente:** Permite modificar URLs de destino, nombres y tipos de dispositivo en caliente.
   - **One-Click Connect:** Botón de conexión directa que abre la sesión gráfica en JumpServer Luna.
   - **Sondeo de Conectividad HTTP en Vivo:** Valida si el equipo destino responde con código HTTP y latencia en milisegundos.

@@ -52,6 +52,35 @@ chmod 644 /etc/ssl/private/ssl-cert-snakeoil.key || true
 # Remove problematic debian chromium extensions wrapper
 rm -f /etc/chromium.d/extensions
 
+# Generate dynamic enterprise managed Chromium policy
+mkdir -p /etc/chromium/policies/managed
+POLICY_FILE="/etc/chromium/policies/managed/kiosk_policy.json"
+cat <<EOF > "$POLICY_FILE"
+{
+  "URLBlocklist": [
+    "chrome://*",
+    "chrome-extension://*",
+    "edge://*",
+    "file://*",
+    "ftp://*",
+    "javascript://*"
+  ],
+  "URLAllowlist": [
+    "http://*",
+    "https://*"
+  ],
+  "PasswordManagerEnabled": true,
+  "PasswordSharingEnabled": false,
+  "DeveloperToolsAvailability": 2,
+  "DisablePrint": true,
+  "DefaultDownloadDirectory": "/dev/null",
+  "DownloadRestrictions": 3,
+  "ShowHomeButton": false,
+  "BookmarkBarEnabled": false
+}
+EOF
+chmod 644 "$POLICY_FILE"
+
 # Start system dbus daemon so Xorg and desktop services don't loop
 mkdir -p /run/dbus /var/run/dbus
 rm -f /run/dbus/pid /var/run/dbus/pid

@@ -44,6 +44,7 @@ async def startup_event():
         disconnect_grace_seconds=settings.disconnect_grace_seconds,
         idle_timeout_seconds=settings.idle_timeout_seconds,
         max_session_lifetime_seconds=settings.max_session_lifetime_seconds,
+        max_concurrent_sessions=settings.max_concurrent_sessions,
     )
 
     with db_factory() as session:

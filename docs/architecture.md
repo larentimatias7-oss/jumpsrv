@@ -21,6 +21,7 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
   - **Ventana de Gracia tras Desconexión (`KIOSK_DISCONNECT_GRACE_SECONDS`, default 30s):** Cuando la sesión finaliza y no quedan conexiones activas (`active_connections == 0`), inicia un temporizador de gracia configurable antes de apagar el contenedor (`docker stop`) y cambiar el estado a `IDLE`. Tolera recargas de página (F5) o microcortes sin interrumpir el flujo.
   - **Watchdog de Inactividad de Tráfico (`KIOSK_IDLE_TIMEOUT_SECONDS`, default 900s / 15m):** Durante la sesión activa, si no se registra tráfico RDP bidireccional durante el periodo configurado, interrumpe la sesión forzando el cierre de sockets y liberando la memoria RAM.
   - **Límite Máximo Absoluto por Sesión (`KIOSK_MAX_SESSION_LIFETIME_SECONDS`, default 14400s / 4h):** Límite continuo absoluto. Al alcanzarse, fuerza la desconexión y detención del contenedor efímero, emitiendo log estructurado (`max_lifetime_exceeded`).
+  - **Límite Preventivo de Concurrencia (`KIOSK_MAX_CONCURRENT_SESSIONS`, default 4):** Verifica la cantidad de contenedores simultáneos gestionados antes de iniciar un contenedor detenido; si se alcanza la cuota máxima, rechaza la nueva conexión RDP de manera preventiva para proteger al host de saturación de RAM u OOM kills.
 - **Configuración Dinámica y Persistencia (`/api/settings`):** Los parámetros de ciclo de vida pueden ajustarse en vivo desde el panel web o API REST, persistiendo en la tabla `system_settings` de SQLite con actualización inmediata en el Dispatcher sin requerir reinicios del servicio.
 
 ### B. Contenedor Quiosco Aislado (`pam-web-kiosk:latest`)
@@ -29,7 +30,10 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
 - **Gestor de Ventanas:** `openbox` (ultraligero, consumo <20 MB RAM, sin barras de tareas ni menús contextuales).
 - **Navegador Web:** Chromium en modo `--kiosk` y `--app="TARGET_URL"`.
 - **Inyección de Entorno:** El script `entrypoint.sh` inyecta las variables del contenedor (`TARGET_URL`, `KIOSK_NAME`) en `/etc/environment`, permitiendo que la sesión PAM no privilegiada (`kiosk`) navegue directamente a la URL indicada sin intermediarios ni pantallas en blanco.
-- **Persistencia de Credenciales y Perfil:** Monta un volumen Docker individual (`rdp_<nombre>`) en `/home/kiosk/.config/chromium` que preserva cookies, sesiones y el almacén de contraseñas básico (`--password-store=basic --enable-features=PasswordManager`).
+- **Hardening Dinámico de Políticas Corporativas:** `entrypoint.sh` genera dinámicamente `/etc/chromium/policies/managed/kiosk_policy.json` bloqueando esquemas internos y protocolos no deseados (`chrome://*`, `chrome-extension://*`, `edge://*`, `file://*`, `ftp://*`, `javascript://*`), desactivando DevTools (`DeveloperToolsAvailability: 2`), prohibiendo descargas (`DownloadRestrictions: 3`) y deshabilitando impresión.
+- **Optimización de Almacenamiento y Retención de Credenciales:**
+  - Aplica límites estrictos de caché en disco (`--disk-cache-size=33554432`, `--media-cache-size=16777216`, `--disable-application-cache`, `--disable-gpu-program-cache`).
+  - Purga selectiva en `startwm.sh` de directorios temporales de caché (`Cache/`, `Code Cache/`, `GPUCache/`, `ShaderCache/`) preservando intactos `Login Data`, `Cookies` y `Preferences`.
 - **Límites de Seguridad Estrictos:**
   - `mem_limit`: 768 MB (evita saturación en el host).
   - `nano_cpus`: 1.0 core.
