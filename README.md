@@ -114,7 +114,16 @@ Permite acceder a consolas web de infraestructura crítica (Zabbix, switches, ro
 | **RDP Dispatcher Pool** | `33891 - 33920` | Host | Rango TCP para escucha de conexiones RDP entrantes |
 | **JumpServer Web/Luna** | `80/tcp` | Host/Proxy | Portal principal de JumpServer |
 
+### Prerrequisitos en Host (Ubuntu Minimal / Debian)
+En sistemas con instalaciones mínimas o contenedores LXC, asegúrese de contar con las herramientas base:
+```bash
+sudo apt update && sudo apt install -y curl wget git jq sqlite3 cron ca-certificates
+sudo systemctl enable --now cron
+```
+
 ### Despliegue Rápido (Stack Oficial)
+
+> 📘 **Guía Completa de Despliegue:** Para una guía paso a paso con topologías, firewall y escenarios Greenfield vs. JumpServer existente, consulte el [Manual de Instalación y Despliegue en Producción (HTML)](docs/manual_instalacion_kiosk_manager.html).
 
 Para desplegar JumpServer Kiosk Manager en el host donde corre JumpServer:
 
@@ -192,6 +201,7 @@ python3 scripts/e2e_test_runner.py
 
 ## 📖 Documentación Técnica
 
+- [Manual de Instalación y Despliegue en Producción (HTML)](docs/manual_instalacion_kiosk_manager.html): Guía exhaustiva e interactiva con matriz de puertos, firewall, despliegue Greenfield y sobre servidores con JumpServer existente.
 - [Guía de Arquitectura](docs/architecture.md): Detalles técnicos del ciclo de vida bajo demanda, relay TCP y compatibilidad RBAC.
 - [Guía de Aprovisionamiento](docs/provisioning.md): Flujo paso a paso de registro de activos, firmas HMAC-SHA256 y rollback no destructivo.
 - [Guía de Operaciones](docs/operations.md): Mantenimiento, respaldos, comandos de diagnóstico y políticas corporativas.

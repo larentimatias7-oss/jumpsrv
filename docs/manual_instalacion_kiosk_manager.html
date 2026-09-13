@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual de Instalación y Despliegue en Producción | JumpServer Kiosk Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* JumpServer Palette */
+      --jms-primary: #148f76;
+      --jms-primary-hover: #117a65;
+      --jms-primary-light: #e8f8f5;
+      --jms-primary-glow: rgba(20, 143, 118, 0.25);
+      --jms-accent: #00b96b;
+      --jms-dark: #0e6553;
+
+      /* Dark Theme (Default) */
+      --bg-body: #0b1120;
+      --bg-sidebar: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-alt: #162032;
+      --bg-code: #090e17;
+      --bg-hover: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.09);
+      --border-accent: rgba(20, 143, 118, 0.45);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      /* Badges & Callouts */
+      --info-bg: rgba(56, 189, 248, 0.1);
+      --info-border: rgba(56, 189, 248, 0.35);
+      --info-text: #38bdf8;
+      --warn-bg: rgba(245, 158, 11, 0.1);
+      --warn-border: rgba(245, 158, 11, 0.35);
+      --warn-text: #fbbf24;
+      --danger-bg: rgba(239, 68, 68, 0.1);
+      --danger-border: rgba(239, 68, 68, 0.35);
+      --danger-text: #f87171;
+      --success-bg: rgba(16, 185, 129, 0.1);
+      --success-border: rgba(16, 185, 129, 0.35);
+      --success-text: #34d399;
+
+      --sidebar-width: 300px;
+      --header-height: 68px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, Monaco, monospace;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+      --radius: 8px;
+    }
+
+    [data-theme="light"] {
+      --bg-body: #f8fafc;
+      --bg-sidebar: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-alt: #f1f5f9;
+      --bg-code: #1e293b;
+      --bg-hover: rgba(0, 0, 0, 0.04);
+      --border: #e2e8f0;
+      --border-accent: rgba(20, 143, 118, 0.35);
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+      --jms-primary-glow: rgba(20, 143, 118, 0.15);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+    }
+
+    body {
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.65;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Navbar */
+    .top-navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: var(--header-height);
+      background-color: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--jms-primary) 0%, #00b96b 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+      font-size: 20px;
+      box-shadow: 0 0 16px var(--jms-primary-glow);
+    }
+
+    .brand-text h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .brand-text span {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-release {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: var(--info-bg);
+      border: 1px solid var(--info-border);
+      color: var(--info-text);
+      font-family: var(--font-mono);
+    }
+
+    .theme-toggle-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      color: var(--jms-primary);
+      border-color: var(--jms-primary);
+    }
+
+    .theme-toggle-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Layout: Sidebar + Main Content */
+    .layout-wrapper {
+      display: flex;
+      flex: 1;
+      width: 100%;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* Sticky Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      position: sticky;
+      top: var(--header-height);
+      height: calc(100vh - var(--header-height));
+      overflow-y: auto;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .sidebar-search {
+      position: relative;
+    }
+
+    .sidebar-search input {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      font-size: 0.85rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .sidebar-search input:focus {
+      border-color: var(--jms-primary);
+    }
+
+    .sidebar-search svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      color: var(--text-dim);
+    }
+
+    .toc-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      padding-left: 8px;
+    }
+
+    .toc-menu {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .toc-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: var(--radius);
+      transition: all 0.15s ease;
+      font-weight: 500;
+      border-left: 2px solid transparent;
+    }
+
+    .toc-link:hover {
+      color: var(--text-main);
+      background-color: var(--bg-hover);
+    }
+
+    .toc-link.active {
+      color: var(--jms-primary);
+      background-color: rgba(20, 143, 118, 0.08);
+      border-left-color: var(--jms-primary);
+      font-weight: 600;
+    }
+
+    .toc-link span.num {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    /* Main Content Area */
+    .content-area {
+      flex: 1;
+      min-width: 0;
+      padding: 40px 48px 80px;
+      max-width: 1040px;
+    }
+
+    /* Typography & Sections */
+    section {
+      margin-bottom: 56px;
+      scroll-margin-top: calc(var(--header-height) + 24px);
+    }
+
+    h2 {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h2 .section-tag {
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      padding: 3px 8px;
+      background: rgba(20, 143, 118, 0.15);
+      color: var(--jms-primary);
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 28px 0 12px;
+      color: var(--text-main);
+    }
+
+    h4 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 20px 0 8px;
+      color: var(--text-main);
+    }
+
+    p {
+      margin-bottom: 16px;
+      color: var(--text-muted);
+      font-size: 0.98rem;
+    }
+
+    p strong {
+      color: var(--text-main);
+    }
+
+    ul, ol {
+      margin: 0 0 20px 24px;
+      color: var(--text-muted);
+      font-size: 0.96rem;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    li strong {
+      color: var(--text-main);
+    }
+
+    /* Cards */
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .card-mini {
+      background: var(--bg-card-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .card-mini h4 {
+      margin: 0 0 6px;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-mini p {
+      margin: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Tables */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin: 20px 0 28px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background-color: var(--bg-card-alt);
+      color: var(--text-main);
+      font-weight: 600;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background-color: var(--bg-hover);
+    }
+
+    .port-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      background: rgba(20, 143, 118, 0.15);
+      border: 1px solid var(--border-accent);
+      color: var(--jms-primary);
+      border-radius: 4px;
+    }
+
+    /* Code Blocks with Copy Button */
+    .code-wrapper {
+      position: relative;
+      margin: 18px 0 24px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background-color: var(--bg-code);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background-color: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+
+    .code-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .code-title .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--jms-primary);
+    }
+
+    .copy-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-dim);
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.08);
+      border-color: var(--border);
+    }
+
+    .copy-btn.copied {
+      color: var(--jms-accent);
+      border-color: var(--jms-accent);
+    }
+
+    .copy-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.86rem;
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+
+    code {
+      font-family: var(--font-mono);
+    }
+
+    p code, li code {
+      background-color: rgba(20, 143, 118, 0.12);
+      color: var(--jms-primary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.88em;
+      border: 1px solid rgba(20, 143, 118, 0.25);
+    }
+
+    /* Callout Boxes */
+    .callout {
+      padding: 16px 20px;
+      border-radius: var(--radius);
+      margin: 20px 0;
+      border-left: 4px solid;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      font-size: 0.94rem;
+    }
+
+    .callout-icon {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      margin-top: 2px;
+    }
+
+    .callout-content {
+      flex: 1;
+    }
+
+    .callout-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .callout-info {
+      background-color: var(--info-bg);
+      border-color: var(--info-text);
+      color: var(--text-main);
+    }
+    .callout-info .callout-icon { color: var(--info-text); }
+
+    .callout-warn {
+      background-color: var(--warn-bg);
+      border-color: var(--warn-text);
+      color: var(--text-main);
+    }
+    .callout-warn .callout-icon { color: var(--warn-text); }
+
+    .callout-danger {
+      background-color: var(--danger-bg);
+      border-color: var(--danger-text);
+      color: var(--text-main);
+    }
+    .callout-danger .callout-icon { color: var(--danger-text); }
+
+    .callout-tip {
+      background-color: var(--success-bg);
+      border-color: var(--jms-accent);
+      color: var(--text-main);
+    }
+    .callout-tip .callout-icon { color: var(--jms-accent); }
+
+    /* Steps List */
+    .step-block {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .step-number {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--jms-primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      box-shadow: 0 0 10px var(--jms-primary-glow);
+    }
+
+    .step-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .step-body h4 {
+      margin-top: 4px;
+      margin-bottom: 8px;
+      font-size: 1.1rem;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      background: var(--bg-sidebar);
+    }
+
+    /* Responsive */
+    @media (max-width: 960px) {
+      .sidebar {
+        display: none;
+      }
+      .content-area {
+        padding: 24px 20px 60px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navbar -->
+  <header class="top-navbar">
+    <a href="#" class="brand">
+      <div class="brand-logo">J</div>
+      <div class="brand-text">
+        <h1>JumpServer Kiosk Manager</h1>
+        <span>Manual Técnico Oficial de Despliegue en Producción</span>
+      </div>
+    </a>
+    <div class="nav-actions">
+      <span class="badge-release">v4.10.x CE Ready</span>
+      <button class="theme-toggle-btn" id="themeToggle" title="Cambiar tema (Claro / Oscuro)">
+        <svg id="moonIcon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <svg id="sunIcon" style="display:none;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="layout-wrapper">
+    <!-- Sticky Sidebar Table of Contents -->
+    <aside class="sidebar">
+      <div class="sidebar-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="filterInput" placeholder="Filtrar secciones...">
+      </div>
+
+      <div>
+        <div class="toc-title">Índice del Manual</div>
+        <ul class="toc-menu" id="tocList">
+          <li><a href="#arquitectura" class="toc-link active"><span class="num">01</span> Arquitectura y Conceptos</a></li>
+          <li><a href="#matriz-puertos" class="toc-link"><span class="num">02</span> Matriz de Puertos y Red</a></li>
+          <li><a href="#escenario-a" class="toc-link"><span class="num">03</span> Escenario A: Servidor Limpio</a></li>
+          <li><a href="#escenario-b" class="toc-link"><span class="num">04</span> Escenario B: Con JumpServer v4</a></li>
+          <li><a href="#respaldos-cron" class="toc-link"><span class="num">05</span> Respaldos SQLite (WAL) y Cron</a></li>
+          <li><a href="#verificacion" class="toc-link"><span class="num">06</span> Verificación Post-Instalación</a></li>
+          <li><a href="#troubleshooting" class="toc-link"><span class="num">07</span> Operación y Troubleshooting</a></li>
+        </ul>
+      </div>
+
+      <div class="card-mini" style="margin-top:auto;">
+        <h4>📘 Referencia Rápida</h4>
+        <p>Compatible con JumpServer Community Edition v4.10.x CE en Ubuntu 22.04 / 24.04 LTS.</p>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content-area">
+
+      <!-- HERO / INTRO -->
+      <section id="arquitectura">
+        <h2><span class="section-tag">01</span> Arquitectura y Principios de Diseño</h2>
+        <p>
+          <strong>JumpServer Kiosk Manager</strong> es una solución desarrollada para orquestar consolas web aisladas en <strong>JumpServer Community Edition (CE)</strong> sin requerir la suscripción Enterprise comercial ni módulos privativos.
+        </p>
+
+        <div class="card-grid">
+          <div class="card-mini">
+            <h4>⚡ Just-In-Time (JIT)</h4>
+            <p>0% CPU y 0 MB RAM en reposo. Los contenedores se encienden al recibir el paquete <code>RDP-SYN</code> y se apagan automáticamente al terminar la sesión.</p>
+          </div>
+          <div class="card-mini">
+            <h4>🛡️ JumpServer v4 RBAC</h4>
+            <p>Firmas criptográficas <code>HMAC-SHA256</code> por petición y compatibilidad nativa con el modelo de permisos y roles de JumpServer v4.</p>
+          </div>
+          <div class="card-mini">
+            <h4>🔒 Hardening Dinámico</h4>
+            <p>Chromium restringido vía políticas corporativas: DevTools desactivadas (F12), descargas bloqueadas y aislamiento estricto de esquemas <code>file://</code> o <code>chrome://</code>.</p>
+          </div>
+          <div class="card-mini">
+            <h4>💾 Persistencia Aislada</h4>
+            <p>Volúmenes Docker dedicados preservan contraseñas y cookies del operador, aplicando límites de caché estrictos para evitar fugas de almacenamiento.</p>
+          </div>
+        </div>
+
+        <h3>Flujo de Conexión y Topología de Componentes</h3>
+        <p>
+          El sistema distribuye sus responsabilidades entre el plano de control (API FastAPI en <code>host network</code>), la interfaz gráfica (Nginx en puerto <code>8080</code>) y el Dispatcher TCP que monitorea el rango de puertos <code>33891 - 33920</code>:
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <div class="code-title"><span class="dot"></span> Diagrama Conceptual de Flujo</div>
+            <span>ASCII Topo</span>
+          </div>
+          <pre><code>[ OPERADOR (Navegador) ] 
+       │ HTTP/WS (:80)
+       ▼
+[ JUMPSERVER v4.10.x CE ]
+  ├─ jms_core (API REST HMAC-SHA256) ──► Kiosk Manager Backend (:8000 / host)
+  └─ jms_lion (Guacamole RDP Proxy)   ──► RDP Dispatcher Pool (:33891 - :33920 / host)
+                                                │ (Detección RDP-SYN / Docker Socket)
+                                                ▼
+                                      [ pam-web-kiosk (JIT Container) ]
+                                      - XRDP Interno (:3389 / Bridge 172.17.0.x)
+                                      - Openbox + Chromium Kiosk Restringido
+                                      - Volumen Persistente (Login Data / Cookies)
+                                                │
+                                                ▼ HTTP / HTTPS
+                                      [ DISPOSITIVO WEB DESTINO ]
+                                      (Switch, Router, Firewall, Zabbix, iDRAC)</code></pre>
+        </div>
+
+        <div class="callout callout-info">
+          <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <div class="callout-content">
+            <strong>Protección estricta de recursos:</strong>
+            El Dispatcher gestiona cuatro políticas concurrentes de conservación de recursos:
+            <ul>
+              <li><strong>Ventana de gracia tras desconexión (30s):</strong> Tolera recargas con F5 o cortes breves de red antes de apagar el contenedor.</li>
+              <li><strong>Inactividad de tráfico (15 min):</strong> Corta la sesión si no hay tráfico RDP activo.</li>
+              <li><strong>Límite continuo absoluto (4 horas):</strong> Detiene sesiones huérfanas de forma improrrogable.</li>
+              <li><strong>Límite de concurrencia máxima (4 sesiones por defecto):</strong> Rechaza preventivamente nuevas conexiones si se alcanza la cuota de RAM del host.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- PUERTOS -->
+      <section id="matriz-puertos">
+        <h2><span class="section-tag">02</span> Matriz de Puertos y Reglas de Firewall</h2>
+        <p>
+          Para garantizar una comunicación sin interrupciones entre los componentes de JumpServer, los operadores y el Kiosk Manager, configure los siguientes puertos en el firewall (UFW / iptables / Security Groups):
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Puerto</th>
+                <th>Protocolo</th>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th>Función / Componente</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="port-badge">80/tcp</span>, <span class="port-badge">443/tcp</span></td>
+                <td>HTTP / HTTPS</td>
+                <td>Operadores / Red LAN</td>
+                <td>Host JumpServer</td>
+                <td>Portal Web JumpServer Luna y autenticación principal</td>
+              </tr>
+              <tr>
+                <td><span class="port-badge">2222/tcp</span></td>
+                <td>SSH</td>
+                <td>Operadores</td>
+                <td>Host JumpServer (koko)</td>
+                <td>Terminal CLI JumpServer Koko (SSH Proxy)</td>
+              </tr>
+              <tr>
+                <td><span class="port-badge">8080/tcp</span></td>
+                <td>HTTP</td>
+                <td>Administradores</td>
+                <td>Kiosk Manager (Nginx)</td>
+                <td>Dashboard Web de administración de quioscos</td>
+              </tr>
+              <tr>
+                <td><span class="port-badge">8000/tcp</span></td>
+                <td>HTTP</td>
+                <td>Localhost / Docker</td>
+                <td>Backend FastAPI</td>
+                <td>API REST interna (reverso-proxyficada por Nginx :8080)</td>
+              </tr>
+              <tr>
+                <td><span class="port-badge">33891 - 33920</span></td>
+                <td>TCP</td>
+                <td>Host (jms_lion)</td>
+                <td>RDP Dispatcher Pool</td>
+                <td>Escucha dinámica de sesiones RDP para quioscos efímeros</td>
+              </tr>
+              <tr>
+                <td><span class="port-badge">3389/tcp</span></td>
+                <td>RDP</td>
+                <td>Dispatcher (Host)</td>
+                <td>Contenedor Efímero</td>
+                <td><strong>Interno a la red Docker bridge</strong> (no exponer en el host)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Reglas de Firewall Recomendadas (UFW)</h3>
+        <div class="code-wrapper">
+          <div class="code-header">
+            <div class="code-title"><span class="dot"></span> Configuración UFW en el Host</div>
+            <button class="copy-btn" onclick="copyCode(this)">
+              <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copiar</span>
+            </button>
+          </div>
+          <pre><code># Permitir acceso al portal JumpServer y SSH administrativo
+sudo ufw allow 22/tcp comment 'SSH Host'
+sudo ufw allow 80/tcp comment 'JumpServer HTTP Web'
+sudo ufw allow 443/tcp comment 'JumpServer HTTPS Web'
+sudo ufw allow 2222/tcp comment 'JumpServer Koko CLI'
+
+# Permitir acceso al Dashboard del Kiosk Manager (solo administradores)
+sudo ufw allow 8080/tcp comment 'Kiosk Manager Web Dashboard'
+
+# Los puertos 33891:33920 comunican jms_lion con el dispatcher en localhost o LAN
+sudo ufw allow 33891:33920/tcp comment 'Kiosk Dispatcher RDP Relay Pool'
+
+# Habilitar firewall
+sudo ufw enable
+sudo ufw status verbose</code></pre>
+        </div>
+      </section>
+
+      <!-- ESCENARIO A -->
+      <section id="escenario-a">
+        <h2><span class="section-tag">03</span> Escenario A: Servidor Ubuntu 24.04 Limpio (Greenfield)</h2>
+        <p>
+          Siga esta guía si está configurando un nuevo servidor físico, máquina virtual (KVM/Proxmox VE) o instancia cloud desde cero para albergar tanto JumpServer v4 como JumpServer Kiosk Manager.
+        </p>
+
+        <!-- Step 1 -->
+        <div class="step-block">
+          <div class="step-number">1</div>
+          <div class="step-body">
+            <h4>Actualización del Sistema y Paquetes Esenciales</h4>
+            <p>Instale las utilidades base requeridas para la orquestación, gestión de red, SQLite y cron:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Terminal Bash</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code>sudo apt update && sudo apt upgrade -y
+sudo apt install -y curl wget git jq sqlite3 cron ca-certificates gnupg lsb-release tar gzip ufw
+
+# Asegurar que el servicio cron esté activo y habilitado en el arranque
+sudo systemctl enable --now cron</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-block">
+          <div class="step-number">2</div>
+          <div class="step-body">
+            <h4>Instalación Oficial de Docker Engine y Docker Compose</h4>
+            <p>Configure el repositorio oficial de Docker para Ubuntu e instale el motor de contenedores:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Repositorio Oficial Docker</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code>sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Iniciar y comprobar Docker
+sudo systemctl enable --now docker
+docker --version && docker compose version</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step-block">
+          <div class="step-number">3</div>
+          <div class="step-body">
+            <h4>Instalación de JumpServer Community Edition v4</h4>
+            <p>Descargue e instale JumpServer v4.10.x CE utilizando el instalador oficial:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Instalador Oficial JumpServer</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code># Descarga del script de despliegue rápido oficial de JumpServer
+curl -sSL https://resource.fit2cloud.com/jumpserver/jumpserver/releases/latest/download/quick_start.sh | bash
+
+# O alternativamente con release específico v4.10.x:
+cd /opt
+# Siga el asistente interactivo aceptando las opciones por defecto (puerto 80, MySQL nativo o embedded)
+
+# Verificar que todos los servicios estén en ejecución:
+./jmsctl.sh status</code></pre>
+            </div>
+            <div class="callout callout-tip">
+              <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              <div class="callout-content">
+                Inicie sesión en JumpServer Web (<code>http://&lt;IP-SERVIDOR&gt;</code>) con el usuario inicial <code>admin</code> / <code>admin</code>, cambie la contraseña y confirme que puede acceder a la interfaz Luna.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step-block">
+          <div class="step-number">4</div>
+          <div class="step-body">
+            <h4>Despliegue de JumpServer Kiosk Manager</h4>
+            <p>Cree el directorio <code>/opt/jumpsrv</code> y descargue los archivos del stack:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Clonación y Configuración</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code>sudo mkdir -p /opt/jumpsrv /backup/kiosk_db
+cd /opt/jumpsrv
+
+# Clonar repositorio
+sudo git clone https://github.com/larentimatias7-oss/jumpsrv.git .
+sudo cp .env.example .env
+
+# Dar permisos de ejecución a los scripts
+sudo chmod +x scripts/backup_database.sh scripts/backup.sh scripts/kioskctl</code></pre>
+            </div>
+
+            <p>Ajuste las variables en <code>.env</code> según su entorno:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Configuración .env</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code># URL local de JumpServer
+JMS_BASE_URL=http://127.0.0.1:80
+
+# Dejar JMS_KEY_ID y JMS_SECRET_KEY vacíos para autodescubrimiento automático vía jms_core
+JMS_KEY_ID=
+JMS_SECRET_KEY=
+
+# Organización por defecto JumpServer v4 (System Org)
+JMS_ORG_ID=00000000-0000-0000-0000-000000000002
+
+# IP LAN del host visible para JumpServer Lion (si se deja vacío, se auto-detecta)
+KIOSK_HOST_IP=
+
+# Credenciales para el Dashboard Web (:8080)
+PORTAL_ADMIN_USER=admin
+PORTAL_ADMIN_PASSWORD=ContraseñaSegura2026!
+SECRET_KEY=$(openssl rand -hex 32)
+
+# Políticas de memoria RAM y concurrencia
+KIOSK_DISCONNECT_GRACE_SECONDS=30
+KIOSK_IDLE_TIMEOUT_SECONDS=900
+KIOSK_MAX_SESSION_LIFETIME_SECONDS=14400
+KIOSK_MAX_CONCURRENT_SESSIONS=4</code></pre>
+            </div>
+
+            <p>Levante los contenedores en producción:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Iniciar Stack de Producción</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code># Iniciar servicios en segundo plano
+sudo docker compose -f docker-compose.prod.yml up -d
+
+# Inspeccionar logs del backend y verificar autodescubrimiento de AccessKey
+sudo docker compose -f docker-compose.prod.yml logs -f backend</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="step-block">
+          <div class="step-number">5</div>
+          <div class="step-body">
+            <h4>Programación del Respaldo SQLite en Crontab</h4>
+            <p>Configure la tarea automática para realizar copias en caliente consistentes de la base de datos WAL:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Configuración de Cron (Host)</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code># Prueba manual del script
+sudo /opt/jumpsrv/scripts/backup_database.sh /var/lib/docker/volumes/jumpsrv_kiosk_db_data/_data/kiosk.db /backup/kiosk_db 7
+
+# Añadir a crontab para ejecución a las 03:00 AM diaria
+(sudo crontab -l 2>/dev/null; echo "0 3 * * * /opt/jumpsrv/scripts/backup_database.sh /var/lib/docker/volumes/jumpsrv_kiosk_db_data/_data/kiosk.db /backup/kiosk_db 7 >> /var/log/kiosk_backup.log 2>&1") | sudo crontab -</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ESCENARIO B -->
+      <section id="escenario-b">
+        <h2><span class="section-tag">04</span> Escenario B: Servidor con JumpServer v4 en Ejecución</h2>
+        <p>
+          Este escenario es el más común en entornos corporativos donde JumpServer v4 ya se encuentra operando y administrando servidores SSH, RDP y bases de datos. Kiosk Manager se añade de forma <strong>completamente no invasiva</strong>.
+        </p>
+
+        <div class="callout callout-tip">
+          <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          <div class="callout-content">
+            <strong>Garantía de No Invasión:</strong> Kiosk Manager no modifica ningún contenedor existente de JumpServer, no altera la base de datos MySQL de JumpServer y no requiere reiniciar el servicio principal de JumpServer.
+          </div>
+        </div>
+
+        <div class="step-block">
+          <div class="step-number">1</div>
+          <div class="step-body">
+            <h4>Auditoría de Salud del Stack JumpServer Existente</h4>
+            <p>Compruebe que JumpServer v4 esté funcionando y que los contenedores <code>jms_core</code> y <code>jms_lion</code> estén saludables:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Verificación de Estado</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code># Comprobar estado de JumpServer
+cd /opt/jumpserver-installer-* 2>/dev/null || cd /opt/jumpserver
+./jmsctl.sh status
+
+# Verificar que el socket Docker del host esté disponible
+ls -la /var/run/docker.sock
+
+# Comprobar presencia de paquetes mínimos
+which sqlite3 || sudo apt update && sudo apt install -y sqlite3 cron</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-block">
+          <div class="step-number">2</div>
+          <div class="step-body">
+            <h4>Despliegue Paralelo en <code>/opt/jumpsrv</code></h4>
+            <p>Despliegue el stack de Kiosk Manager sin colisionar con rutas de JumpServer:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Despliegue Paralelo</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code>sudo mkdir -p /opt/jumpsrv /backup/kiosk_db
+cd /opt/jumpsrv
+sudo git clone https://github.com/larentimatias7-oss/jumpsrv.git .
+sudo cp .env.example .env
+sudo chmod +x scripts/*.sh
+
+# Generar clave secreta para la sesión
+sed -i "s/SECRET_KEY=.*/SECRET_KEY=$(openssl rand -hex 32)/" .env
+
+# Levantar Kiosk Manager
+sudo docker compose -f docker-compose.prod.yml up -d</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-block">
+          <div class="step-number">3</div>
+          <div class="step-body">
+            <h4>Verificación del Autodescubrimiento Cero-Configuración</h4>
+            <p>El backend se conecta con <code>jms_core</code> y resuelve el AccessKey con permisos de Administrador vía RBAC:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Inspección de Logs de Autodescubrimiento</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code>sudo docker compose -f docker-compose.prod.yml logs backend | grep -i "autodiscover"</code></pre>
+            </div>
+            <p>Deberá observar una salida exitosa similar a:</p>
+            <pre><code>[INFO] autodiscover: Discovered active JumpServer core container: jms_core
+[INFO] autodiscover: Retrieved administrative AccessKey ID: 3e8f...
+[INFO] autodiscover: Cached credentials safely in /app/data/jms_credentials.json</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- RESPALDOS CRON -->
+      <section id="respaldos-cron">
+        <h2><span class="section-tag">05</span> Respaldos Automatizados SQLite (WAL) y Cron</h2>
+        <p>
+          La base de datos de metadatos de quioscos utiliza SQLite en modo <strong>WAL (Write-Ahead Logging)</strong>. Copiar el archivo directamente con <code>cp</code> puede provocar inconsistencias o estados corruptos si hay transacciones concurrentes en vuelo.
+        </p>
+
+        <div class="card">
+          <h3>Mecanismo de Respaldo Seguro: <code>scripts/backup_database.sh</code></h3>
+          <p>
+            El script oficial incluido en el repositorio utiliza la API en línea de SQLite:
+          </p>
+          <ul>
+            <li>Invoca el comando nativo <code>sqlite3 "$DB" ".backup '$BACKUP_FILE'"</code> (con fallback automático a la API <code>sqlite3.backup</code> de Python si la CLI no estuviera instalada).</li>
+            <li>Realiza una comprobación estricta de integridad tras la copia: <code>PRAGMA integrity_check;</code>.</li>
+            <li>Calcula el tamaño del respaldo y purga automáticamente cualquier copia con más de <strong>7 días</strong> de antigüedad (<code>-mtime +7 -delete</code>).</li>
+          </ul>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <div class="code-title"><span class="dot"></span> Verificación del Script</div>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copiar</span>
+              </button>
+            </div>
+            <pre><code># Comprobar permisos del script
+ls -la /opt/jumpsrv/scripts/backup_database.sh
+
+# Ejecutar respaldo manual
+sudo /opt/jumpsrv/scripts/backup_database.sh /var/lib/docker/volumes/jumpsrv_kiosk_db_data/_data/kiosk.db /backup/kiosk_db 7
+
+# Listar respaldos generados
+ls -lh /backup/kiosk_db/</code></pre>
+          </div>
+
+          <h4>Procedimiento de Restauración</h4>
+          <p>Si requiere restaurar la base de datos ante una contingencia:</p>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <div class="code-title"><span class="dot"></span> Restauración Paso a Paso</div>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copiar</span>
+              </button>
+            </div>
+            <pre><code># 1. Detener el backend de Kiosk Manager
+cd /opt/jumpsrv
+sudo docker compose -f docker-compose.prod.yml stop backend
+
+# 2. Reemplazar la base de datos activa por el respaldo elegido
+TARGET_DB="/var/lib/docker/volumes/jumpsrv_kiosk_db_data/_data/kiosk.db"
+BACKUP_TO_RESTORE="/backup/kiosk_db/kiosk_20260913_030000.db"
+
+sudo cp "$BACKUP_TO_RESTORE" "$TARGET_DB"
+# Eliminar archivos journal / wal residuales
+sudo rm -f "${TARGET_DB}-wal" "${TARGET_DB}-shm"
+
+# 3. Reiniciar el backend
+sudo docker compose -f docker-compose.prod.yml start backend
+sudo docker compose -f docker-compose.prod.yml logs backend</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- VERIFICACION -->
+      <section id="verificacion">
+        <h2><span class="section-tag">06</span> Verificación Post-Instalación y Suite E2E</h2>
+        <p>
+          Valide que el aprovisionamiento, la creación de activos en JumpServer v4 y el despacho RDP funcionen de extremo a extremo:
+        </p>
+
+        <div class="step-block">
+          <div class="step-number">1</div>
+          <div class="step-body">
+            <h4>Ejecución de la Suite de Pruebas E2E (8 Fases)</h4>
+            <p>El repositorio incluye una suite automatizada completa que prueba todas las etapas:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <div class="code-title"><span class="dot"></span> Suite E2E Automatizada</div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              <pre><code>cd /opt/jumpsrv
+python3 scripts/e2e_test_runner.py</code></pre>
+            </div>
+            <p>La suite valida:</p>
+            <ol>
+              <li>Salud y respuesta de la API FastAPI (<code>/health</code>).</li>
+              <li>Autodescubrimiento y validación de AccessKey con JumpServer v4.</li>
+              <li>Aprovisionamiento transaccional de un quiosco de prueba.</li>
+              <li>Verificación del activo registrado en JumpServer (<code>/api/v1/assets/hosts/</code>).</li>
+              <li>Apertura del puerto RDP en el Dispatcher y simulación de conexión.</li>
+              <li>Arranque del contenedor efímero y respuesta de XRDP.</li>
+              <li>Apagado por ciclo de vida y transición de estado a <code>IDLE</code>.</li>
+              <li>Rollback limpio y eliminación del activo de prueba.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="step-block">
+          <div class="step-number">2</div>
+          <div class="step-body">
+            <h4>Prueba Operativa desde la Interfaz Web</h4>
+            <ol>
+              <li>Abra en su navegador <code>http://&lt;IP-SERVIDOR&gt;:8080</code> e ingrese con las credenciales configuradas en <code>.env</code>.</li>
+              <li>Haga clic en <strong>+ Nuevo Quiosco</strong>, ingrese un nombre (ej. <code>Firewall-Edge</code>), la URL de destino (ej. <code>https://192.168.1.1</code>) y guarde.</li>
+              <li>Verifique que el quiosco aparezca en estado <span class="port-badge" style="color:var(--jms-primary);">IDLE (En espera)</span>.</li>
+              <li>Haga clic en el botón <strong>Luna</strong> para abrir JumpServer Web Terminal.</li>
+              <li>Conéctese al activo: observe cómo el estado cambia instantáneamente a <span class="port-badge" style="color:var(--jms-accent);">RUNNING</span> y Chromium carga la consola del dispositivo.</li>
+              <li>Cierre la pestaña de Luna: verifique en los logs del backend que tras la ventana de gracia (30s) el contenedor se apaga y vuelve a <code>IDLE</code>.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- TROUBLESHOOTING -->
+      <section id="troubleshooting">
+        <h2><span class="section-tag">07</span> Operación, Mantenimiento y Troubleshooting</h2>
+        
+        <h3>Comandos de Operación Frecuentes</h3>
+        <div class="code-wrapper">
+          <div class="code-header">
+            <div class="code-title"><span class="dot"></span> Comandos CLI de Mantenimiento</div>
+            <button class="copy-btn" onclick="copyCode(this)">
+              <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copiar</span>
+            </button>
+          </div>
+          <pre><code># Ver estado de los contenedores del stack
+sudo docker compose -f /opt/jumpsrv/docker-compose.prod.yml ps
+
+# Ver contenedores de quiosco activos o detenidos
+sudo docker ps -a --filter label=managed-by=jumpserver-kiosk-manager
+
+# Seguir logs del backend y Dispatcher en tiempo real
+sudo docker compose -f /opt/jumpsrv/docker-compose.prod.yml logs -f --tail=100 backend
+
+# Actualizar las imágenes Docker del stack a la última versión
+cd /opt/jumpsrv
+sudo docker compose -f docker-compose.prod.yml pull
+sudo docker compose -f docker-compose.prod.yml up -d
+
+# Limpiar todos los contenedores efímeros detenidos (los volúmenes se conservan intactos)
+sudo docker rm -f $(sudo docker ps -aq --filter label=managed-by=jumpserver-kiosk-manager)</code></pre>
+        </div>
+
+        <h3>Resolución de Problemas Frecuentes (Troubleshooting)</h3>
+
+        <div class="card">
+          <h4>1. Error de permisos en el socket Docker (<code>Permission Denied</code>)</h4>
+          <p>
+            <strong>Síntoma:</strong> El log del backend muestra <code>PermissionError: [Errno 13] Permission denied: '/var/run/docker.sock'</code>.
+          </p>
+          <p>
+            <strong>Solución:</strong> Asegúrese de que el socket del host tenga permisos de lectura y escritura para el contenedor:
+          </p>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <div class="code-title"><span class="dot"></span> Ajuste de Permisos de Socket</div>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copiar</span>
+              </button>
+            </div>
+            <pre><code>sudo chmod 666 /var/run/docker.sock
+# O agregue el usuario del contenedor al grupo docker</code></pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>2. Puerto ocupado o conflicto en rango de Dispatcher (<code>Address already in use</code>)</h4>
+          <p>
+            <strong>Síntoma:</strong> Fallo al iniciar la escucha en el puerto <code>33891</code>.
+          </p>
+          <p>
+            <strong>Diagnóstico y Solución:</strong> Identifique qué proceso está utilizando el puerto:
+          </p>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <div class="code-title"><span class="dot"></span> Identificación de Procesos en Conflicto</div>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copiar</span>
+              </button>
+            </div>
+            <pre><code>sudo ss -tulpn | grep 33891
+# Si es un proceso antiguo huérfano, finalícelo:
+sudo fuser -k 33891/tcp</code></pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>3. Error de firma HMAC en JumpServer v4 (Diferencia de Reloj / NTP)</h4>
+          <p>
+            <strong>Síntoma:</strong> <code>401 Unauthorized - Signature check failed</code> en las llamadas hacia <code>/api/v1/...</code>.
+          </p>
+          <p>
+            <strong>Causa:</strong> La especificación de firma HMAC de JumpServer rechaza peticiones con desincronización de reloj superior a 15 minutos.
+          </p>
+          <p>
+            <strong>Solución:</strong> Sincronice el reloj del servidor mediante <code>chrony</code> o <code>systemd-timesyncd</code>:
+          </p>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <div class="code-title"><span class="dot"></span> Sincronización NTP</div>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copiar</span>
+              </button>
+            </div>
+            <pre><code>sudo timedatectl set-ntp true
+sudo timedatectl status</code></pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>4. Paquetes <code>cron</code> o <code>sqlite3</code> no encontrados en Ubuntu Minimal</h4>
+          <p>
+            <strong>Síntoma:</strong> Errores <code>crontab: command not found</code> o <code>sqlite3: command not found</code> durante el backup.
+          </p>
+          <p>
+            <strong>Solución:</strong> Instale ambos componentes:
+          </p>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <div class="code-title"><span class="dot"></span> Instalación en Ubuntu Minimal</div>
+              <button class="copy-btn" onclick="copyCode(this)">
+                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copiar</span>
+              </button>
+            </div>
+            <pre><code>sudo apt update && sudo apt install -y sqlite3 cron
+sudo systemctl enable --now cron</code></pre>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer>
+    <p>JumpServer Kiosk Manager &copy; 2026. Documentación técnica para producción y despliegues de misión crítica.</p>
+  </footer>
+
+  <!-- Script interactivo: Copiado de código, cambio de tema y scroll-spy -->
+  <script>
+    // Copy Code to Clipboard with Feedback
+    function copyCode(button) {
+      const wrapper = button.closest('.code-wrapper');
+      const code = wrapper.querySelector('pre code').innerText;
+      
+      navigator.clipboard.writeText(code).then(() => {
+        const textSpan = button.querySelector('span');
+        const origText = textSpan.innerText;
+        textSpan.innerText = '¡Copiado!';
+        button.classList.add('copied');
+        
+        setTimeout(() => {
+          textSpan.innerText = origText;
+          button.classList.remove('copied');
+        }, 2000);
+      }).catch(err => {
+        console.error('Error al copiar:', err);
+      });
+    }
+
+    // Theme Toggle (Dark / Light)
+    const themeToggle = document.getElementById('themeToggle');
+    const moonIcon = document.getElementById('moonIcon');
+    const sunIcon = document.getElementById('sunIcon');
+    const htmlEl = document.documentElement;
+
+    const savedTheme = localStorage.getItem('kiosk_docs_theme') || 'dark';
+    setTheme(savedTheme);
+
+    themeToggle.addEventListener('click', () => {
+      const current = htmlEl.getAttribute('data-theme');
+      const target = current === 'dark' ? 'light' : 'dark';
+      setTheme(target);
+    });
+
+    function setTheme(theme) {
+      htmlEl.setAttribute('data-theme', theme);
+      localStorage.setItem('kiosk_docs_theme', theme);
+      if (theme === 'dark') {
+        moonIcon.style.display = 'block';
+        sunIcon.style.display = 'none';
+      } else {
+        moonIcon.style.display = 'none';
+        sunIcon.style.display = 'block';
+      }
+    }
+
+    // Scroll Spy for Table of Contents
+    const sections = document.querySelectorAll('section');
+    const tocLinks = document.querySelectorAll('.toc-link');
+
+    window.addEventListener('scroll', () => {
+      let currentSection = '';
+      const scrollPos = window.scrollY + 100;
+
+      sections.forEach(section => {
+        const top = section.offsetTop;
+        const height = section.offsetHeight;
+        if (scrollPos >= top && scrollPos < top + height) {
+          currentSection = section.getAttribute('id');
+        }
+      });
+
+      if (currentSection) {
+        tocLinks.forEach(link => {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === `#${currentSection}`) {
+            link.classList.add('active');
+          }
+        });
+      }
+    });
+
+    // Filter Sections in Sidebar
+    const filterInput = document.getElementById('filterInput');
+    filterInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      document.querySelectorAll('#tocList li').forEach(item => {
+        const text = item.innerText.toLowerCase();
+        item.style.display = text.includes(query) ? '' : 'none';
+      });
+    });
+  </script>
+</body>
+</html>

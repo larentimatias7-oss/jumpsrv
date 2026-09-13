@@ -555,6 +555,9 @@ onUnmounted(() => {
             <a href="/guia-usuario.html" target="_blank" class="dropdown-item">
               📖 Manual de Usuario
             </a>
+            <a href="/manual_instalacion_kiosk_manager.html" target="_blank" class="dropdown-item">
+              🚀 Manual de Despliegue
+            </a>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item danger" @click="authCredentials.user = ''; authCredentials.pass = ''; saveCredentials()">
               🚪 Salir
@@ -674,6 +677,15 @@ onUnmounted(() => {
             <span>Guía de usuario</span>
           </a>
 
+          <a href="/manual_instalacion_kiosk_manager.html" target="_blank" class="nav-item">
+            <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            <span>Manual de despliegue</span>
+          </a>
+
           <div class="nav-item" @click="showSettingsModal = true">
             <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"/>
@@ -703,6 +715,9 @@ onUnmounted(() => {
             <div class="title-actions">
               <a href="/guia-usuario.html" target="_blank" class="link-btn">
                 📖 Manual de usuario
+              </a>
+              <a href="/manual_instalacion_kiosk_manager.html" target="_blank" class="link-btn">
+                🚀 Despliegue
               </a>
               <a href="/luna/" target="_blank" class="link-btn">
                 🖥️ Acceso a Luna

@@ -1,5 +1,7 @@
 # Manual de Operaciones y Mantenimiento: JumpServer Kiosk Manager
 
+> 📘 **Manual Oficial de Despliegue en Producción:** Para una guía exhaustiva paso a paso con matriz de puertos, firewall y escenarios Greenfield vs. JumpServer existente, consulta el documento interactivo [docs/manual_instalacion_kiosk_manager.html](manual_instalacion_kiosk_manager.html).
+
 ## 1. Servicios del Sistema y Comandos de Control
 
 En producción, JumpServer Kiosk Manager opera típicamente mediante Docker Compose (`docker-compose.prod.yml`) o a través de servicios systemd:
@@ -147,7 +149,15 @@ La base de datos SQLite opera en modo WAL (`Write-Ahead Logging`), lo que permit
 - Rota automáticamente los respaldos eliminando archivos con más de 7 días de antigüedad (`-mtime +7`).
 
 ### 6.2 Automatización Diaria vía Cron
-Para ejecutar respaldos automáticos todos los días a las 03:00 AM, configura una tarea en crontab:
+Para ejecutar respaldos automáticos todos los días a las 03:00 AM, asegúrese primero de contar con `cron` y `sqlite3` instalados en el host (esencial en distribuciones Ubuntu Minimal o contenedores LXC):
+
+```bash
+# Instalación de herramientas base si no estuvieran presentes
+sudo apt update && sudo apt install -y sqlite3 cron
+sudo systemctl enable --now cron
+```
+
+Luego, configure la tarea en crontab:
 
 ```bash
 # Editar crontab del host
