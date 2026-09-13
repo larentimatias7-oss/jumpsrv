@@ -26,7 +26,16 @@ class JumpServerSettings(BaseSettings):
     )
     secret_file: Path | None = Field(default=None, description="Path to 600 file with secret")
     secret_value: str | None = Field(
-        default_factory=lambda: os.getenv("JMS_SECRET_KEY", os.getenv("JMS_SECRET", os.getenv("JMS_SECRET_VALUE", os.getenv("JUMPSERVER_SECRET", "")))),
+        default_factory=lambda: os.getenv(
+            "JMS_SECRET_KEY",
+            os.getenv(
+                "JMS_SECRET",
+                os.getenv(
+                    "JMS_SECRET_VALUE",
+                    os.getenv("JUMPSERVER_KEY_SECRET", os.getenv("JUMPSERVER_SECRET", "")),
+                ),
+            ),
+        ),
         description="Direct secret in memory or test env",
     )
     org_id: str = Field(
