@@ -26,11 +26,41 @@
 
 ### Causa 2: Timing / Contenedor no responde a tiempo (Cold Start Timeout)
 - **Síntoma:** El Dispatcher emite `Timeout waiting for XRDP on 172.17.0.x:3389`.
-- **Solución:** El loop de sondeo en `backend/app/dispatcher/service.py` debe tener al menos 100 intentos (10 segundos) para tolerar arranques fríos de contenedores en hosts con carga.
+- **Solución:** El loop de sondeo en `backend/app/dispatcher/service.py` dispone de hasta 300 intentos (30 segundos con backoff de 100ms) para tolerar arranques fríos de contenedores en hosts con alta carga.
 
 ---
 
-## 2. Pantalla Blanca o Mensaje "This page is blocked"
+## 2. Incompatibilidad JumpServer v4 RBAC: `FieldError: Cannot resolve keyword 'is_superuser'`
+
+- **Síntoma:** Durante el autodescubrimiento o ejecución manual en `manage.py shell`, JumpServer arroja:
+  `django.core.exceptions.FieldError: Cannot resolve keyword 'is_superuser' into field.`
+- **Causa:** JumpServer v4 (v4.10.x CE) eliminó el campo booleano `is_superuser` en el modelo `User`, reemplazándolo por el sistema de roles RBAC (`role`).
+- **Solución:**
+  - En lugar de consultar `is_superuser=True`, resolver el usuario mediante su rol:
+    ```python
+    from authentication.models import AccessKey
+    from users.models import User
+    user = User.objects.filter(role__name__icontains='Admin').first() or User.objects.filter(username='admin').first()
+    ```
+  - La lógica de autodescubrimiento en `backend/app/jumpserver/autodiscovery.py` ya gestiona esta jerarquía de forma segura con captura de excepciones.
+
+---
+
+## 3. Acceso y Permisos del Socket Docker (`/var/run/docker.sock`)
+
+- **Síntoma:** El backend no detecta `jms_core`, emite advertencias `Docker daemon not yet available` o falla al arrancar contenedores efímeros.
+- **Diagnóstico:**
+  Verificar que `/var/run/docker.sock` esté montado en el contenedor backend:
+  ```bash
+  docker exec kiosk-manager-backend ls -l /var/run/docker.sock
+  ```
+- **Solución:**
+  - Asegurar que `docker-compose.prod.yml` contenga el montaje `- /var/run/docker.sock:/var/run/docker.sock`.
+  - Si el socket tiene permisos restringidos en el host, verificar pertenencia al grupo `docker` o ajustar permisos del socket.
+
+---
+
+## 4. Pantalla Blanca o Mensaje "This page is blocked"
 
 ### Causa: Variable TARGET_URL no heredada o about:blank bloqueado
 - **Síntoma:** La sesión RDP conecta pero la pantalla muestra *"This page is blocked. Your organization doesn't allow you to view this site"*.
@@ -43,31 +73,31 @@
 
 ---
 
-## 3. Diálogo de "Profile in use / SingletonLock" de Chromium
+## 5. Diálogo de "Profile in use / SingletonLock" de Chromium
 
 - **Síntoma:** Chromium no se dibuja o aparece un diálogo emergente de `xmessage` indicando que el perfil ya está en uso por otro proceso.
 - **Causa:** El contenedor anterior se detuvo abruptamente y dejó el archivo de bloqueo `SingletonLock` en el volumen de datos del usuario.
 - **Solución:**
-  En `startwm.sh` y `entrypoint.sh`, incluir la eliminación preventiva:
+  En `startwm.sh` y `entrypoint.sh`, se incluye la eliminación preventiva:
   ```bash
   rm -f "$USER_DATA_DIR"/Singleton*
   ```
 
 ---
 
-## 4. Error 401 Unauthorized en el Panel Web (`:8080`)
+## 6. Error 401 Unauthorized en el Panel Web (`:8080`)
 
 - **Síntoma:** El panel web muestra *"Authentication required or invalid credentials"*.
-- **Solución:** Las credenciales básicas por defecto para la API son `admin` / `admin`. Puedes verificar o ajustar los valores en `backend/app/auth/basic_auth.py` o en las variables de entorno `KIOSK_ADMIN_USER` y `KIOSK_ADMIN_PASS`.
+- **Solución:** Las credenciales básicas por defecto para la API son `admin` / `admin`. Puedes verificar o ajustar los valores mediante las variables de entorno `PORTAL_ADMIN_USER` y `PORTAL_ADMIN_PASSWORD` en tu archivo `.env`.
 
 ---
 
-## 5. El Dispositivo Web Destino Aparece "Offline"
+## 7. El Dispositivo Web Destino Aparece "Offline"
 
 - **Diagnóstico:**
-  Usa el botón de prueba de conectividad (icono **⚡**) en la fila del quiosco en el panel `:8080`, o prueba un curl directo desde el host:
+  Usa el botón de prueba de conectividad (icono **⚡**) en la fila del quiosco en el panel `:8080` (endpoint `GET /api/kiosks/{id}/test-url`), o prueba un curl directo desde el host:
   ```bash
   curl -sI -m 3 <TARGET_URL>
   ```
 - **Solución:**
-  - Si devuelve `Connection Refused` o timeout, verificar la IP, máscara de red, enrutamiento en Proxmox y que el servidor web del dispositivo destino esté escuchando en el puerto configurado.
+  - Si devuelve `Connection Refused` o timeout, verificar la IP, máscara de red, enrutamiento en Proxmox/switch y que el servidor web del dispositivo destino esté escuchando en el puerto configurado.

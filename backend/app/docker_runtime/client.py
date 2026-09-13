@@ -16,7 +16,7 @@ DEFAULT_KIOSK_IMAGE = os.getenv("KIOSK_DOCKER_IMAGE", "ghcr.io/larentimatias7-os
 
 
 class DockerRuntime:
-    """Manages containers exclusively via Rootless Docker daemon."""
+    """Manages ephemeral kiosk containers and persistent volumes via Docker daemon."""
 
     def __init__(self, socket_path: Optional[str] = None):
         if not socket_path:
@@ -24,10 +24,8 @@ class DockerRuntime:
             if xdg_runtime:
                 socket_path = f"unix://{xdg_runtime}/docker.sock"
             else:
-                # Default rootless socket fallback for kiosk-runtime
                 socket_path = os.environ.get("DOCKER_HOST", "unix:///var/run/docker.sock")
 
-        # Ensure we never touch rootful socket if running under kiosk-runtime
         logger.info(f"Connecting to Docker socket: {socket_path}")
         self.socket_path = socket_path
         self._client = None

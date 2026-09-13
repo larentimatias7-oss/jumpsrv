@@ -10,9 +10,9 @@ services:
     volumes:
       - ./data:/opt/kiosk-portal/data
       - ./config:/opt/kiosk-portal/config
-      - /run/user/1001/docker.sock:/run/user/1001/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - DOCKER_HOST=unix:///run/user/1001/docker.sock
+      - DOCKER_HOST=unix:///var/run/docker.sock
 
   frontend:
     build:

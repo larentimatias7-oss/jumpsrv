@@ -54,7 +54,7 @@ def detect_host_ip(fallback: str = "127.0.0.1") -> str:
 
 
 class KioskProvisioner:
-    """Orchestrates safe, non-destructive provisioning between Docker Rootless and JumpServer."""
+    """Orchestrates safe, non-destructive provisioning between Docker Engine and JumpServer."""
 
     def __init__(
         self,
@@ -156,7 +156,7 @@ class KioskProvisioner:
         created_resources: List[tuple[str, Any]] = []
 
         try:
-            # 4. Create volume in Rootless Docker
+            # 4. Create volume in Docker
             vol = self.docker.create_volume(volume_name, kiosk_id)
             created_resources.append(("volume", volume_name))
 

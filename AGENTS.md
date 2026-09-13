@@ -1,34 +1,43 @@
 # Project Rules - JumpServer Kiosk Manager
 
-## Docker Rules
-- **CRITICAL**: Never interact with `/var/run/docker.sock` (Docker rootful of JumpServer).
-- Only use the rootless Docker daemon (user `kiosk-runtime`, socket `/run/user/<UID>/docker.sock`).
-- Never use `--privileged` in containers.
-- Never delete a Docker resource unless it contains label `managed-by=jumpserver-kiosk-manager`.
-- Always bind RDP ports specifically to the designated host IP (e.g., `-p 172.30.20.62:3389X:3389` or lab IP), never `0.0.0.0`.
+## Docker & Container Runtime Rules
+- **Docker Socket Access**: `/var/run/docker.sock` is explicitly permitted and required for:
+  1. Auto-discovering JumpServer credentials from the local `jms_core` container (`autodiscover_from_core`).
+  2. Orchestrating the ephemeral Just-In-Time (JIT) lifecycle of `pam-web-kiosk` containers and credential volumes.
+- **Resource Protection**: NEVER stop, modify, or delete any Docker container, volume, or network unless it carries the label `managed-by=jumpserver-kiosk-manager`.
+- **Privilege Restrictions**: NEVER run containers in `--privileged` mode.
+- **RDP & Dispatcher Architecture**:
+  - The Kiosk Dispatcher runs as an asyncio TCP relay in the backend (`network_mode: "host"`), listening on host ports (`33891 - 33920`).
+  - Containers do NOT expose raw host ports directly; they run isolated on the bridge network and accept relayed traffic from the Dispatcher to container internal port 3389.
+  - The JumpServer host asset is registered with the designated host IP (`KIOSK_HOST_IP` or auto-detected LAN IP).
 
-## Security Rules
-- Never commit credentials, tokens or secrets to Git.
-- Never place device credentials in source code.
-- Never execute shell commands constructed from raw user input without validation.
-- Passwords for kiosk system accounts must be passed securely via stdin (`echo "user:pass" | chpasswd`) or temporary 600 files, NEVER in argv.
-- Always validate device names, IP addresses, ports and URLs strictly.
-- Preserve existing kiosks during failed provisioning (strict non-destructive rollback).
-
-## JumpServer API Rules
-- Payloads must strictly adhere to the installed `/api/docs/` specification.
-- Use the verified Authorization header format:
+## JumpServer v4 RBAC Compatibility
+- **Strict Prohibition**: NEVER query `User.objects.filter(is_superuser=True)` in JumpServer ORM or shell snippets. In JumpServer v4 (v4.10.x+ CE), superuser status was replaced by Role-Based Access Control (RBAC); referencing `is_superuser` throws a fatal `FieldError: Cannot resolve keyword 'is_superuser' into field`.
+- **Role Resolution Protocol**: Always query administrative users via role name:
+  `User.objects.filter(role__name__icontains="Admin").first()`
+  Follow with safe fallbacks: `User.objects.filter(username="admin").first()` and active accounts, catching `FieldError` and generic exceptions safely.
+- **API Specification**: All payloads must strictly comply with JumpServer v4 API endpoints (`/api/v1/assets/hosts/`, `/api/v1/accounts/accounts/`, `/api/v1/perms/asset-permissions/`).
+- **Signature & Header Format**:
   `Authorization: Signature keyid="<KEY_ID>",algorithm="hmac-sha256",headers="(request-target) date x-jms-org",signature="<BASE64>"`
-- Signed string order must be:
+  Order of signed string:
   `(request-target): <method> <path>\ndate: <RFC1123>\nx-jms-org: <org-id>`
-- Every create operation must be idempotent or cleanly recoverable.
+- Default organization UUID in JumpServer 4.x is `00000000-0000-0000-0000-000000000002` (System Org).
 
-## Architecture Rules
-- 1 device = 1 container = 1 RDP port = 1 JumpServer asset.
-- Use image `pam-web-kiosk:v1` (Ubuntu 24.04 + modern Chromium + XRDP + Supervisor).
-- Keep credentials partitioned into 3 isolated layers:
-  1. JumpServer user identity (Vault JMS)
-  2. Kiosk OS RDP user (random 32 char, Vault JMS only)
-  3. Device admin user (Chromium isolated profile)
-- Database: SQLite with WAL mode.
-- Frontend: Vue 3 + Vite with clean, responsive dark/light UI.
+## Development Environment (Windows / WSL)
+- **POSIX Parity**: On Windows hosts, all local Python execution, virtual environment operations (`/tmp/venv`), CLI utilities, and test runners MUST be executed inside WSL (`wsl bash -c "..."`).
+- Never run Python unit tests directly in Windows PowerShell when path formatting, UNIX sockets, or POSIX filesystem semantics are involved.
+
+## Security, Secrets & Idempotency
+- **Zero Secrets in Git**: NEVER commit tokens (`ghp_*`), SSH private keys (`id_ed25519`), passwords, or API secrets to version control.
+- **Input Validation**: Never execute shell commands constructed from raw user input without strict sanitization and validation.
+- **Password Handling**: Kiosk OS RDP passwords (cryptographically random 32 characters) and system credentials must be transmitted via stdin or temporary 0600 files, NEVER via command-line arguments (`argv`).
+- **Rollback Guarantee**: Every provisioning workflow must be idempotent and support strict non-destructive rollback. In case of failure, clean up only newly created resources in reverse order without modifying pre-existing assets.
+- **Credential Partitioning (3 Layers)**:
+  1. JumpServer user identity (Vault JMS).
+  2. Kiosk OS RDP user (random 32 char, Vault JMS only).
+  3. Device admin user (Chromium isolated profile in encrypted/persistent volume).
+
+## Git & Quality Assurance Workflow
+- **Conventional Commits**: All commit messages must follow Conventional Commits format (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`).
+- **Mandatory Pre-Push Validation**: Before pushing to `main`, always execute and verify the test suite in WSL:
+  `wsl bash -c "/tmp/venv/bin/pytest backend/tests"`
