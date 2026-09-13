@@ -2,10 +2,36 @@ from __future__ import annotations
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from ..auth.basic_auth import verify_credentials
+from ..config import (
+    SessionLifecycleSettings,
+    get_lifecycle_settings,
+    save_lifecycle_settings,
+)
 from ..provisioning.provisioner import KioskProvisioner, KioskCreateRequest, KioskUpdateRequest
 
 router = APIRouter(dependencies=[Depends(verify_credentials)])
 provisioner = KioskProvisioner()
+
+
+@router.get("/settings", response_model=SessionLifecycleSettings)
+def get_settings():
+    return get_lifecycle_settings()
+
+
+@router.put("/settings", response_model=SessionLifecycleSettings)
+@router.post("/settings", response_model=SessionLifecycleSettings)
+def update_settings(req: SessionLifecycleSettings):
+    saved = save_lifecycle_settings(req)
+    try:
+        from ..main import dispatcher
+        dispatcher.update_lifecycle_settings(
+            disconnect_grace_seconds=saved.disconnect_grace_seconds,
+            idle_timeout_seconds=saved.idle_timeout_seconds,
+            max_session_lifetime_seconds=saved.max_session_lifetime_seconds,
+        )
+    except Exception:
+        pass
+    return saved
 
 
 @router.get("/kiosks", response_model=List[Dict[str, Any]])

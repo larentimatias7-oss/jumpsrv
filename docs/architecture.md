@@ -17,7 +17,11 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
   2. Arranca el contenedor Docker correspondiente de forma instantánea (`ensure_container_running`).
   3. Ejecuta un bucle de sondeo con backoff hacia la IP interna del contenedor (`172.17.0.x:3389`) hasta que XRDP esté completamente operativo y acepte tráfico.
   4. Conmuta bidireccionalmente los streams de red cliente <-> XRDP con liberación asíncrona inmediata (`asyncio.FIRST_COMPLETED`).
-- **Temporizador de Inactividad (Idle Shutdown):** Cuando la sesión RDP finaliza y no quedan conexiones activas, inicia un temporizador de gracia de **120 segundos**. Si no se reciben nuevas conexiones en esa ventana, detiene el contenedor para liberar el 100% de la memoria RAM y CPU en el host.
+- **Políticas de Ciclo de Vida y Ahorro de RAM:**
+  - **Ventana de Gracia tras Desconexión (`KIOSK_DISCONNECT_GRACE_SECONDS`, default 30s):** Cuando la sesión finaliza y no quedan conexiones activas (`active_connections == 0`), inicia un temporizador de gracia configurable antes de apagar el contenedor (`docker stop`) y cambiar el estado a `IDLE`. Tolera recargas de página (F5) o microcortes sin interrumpir el flujo.
+  - **Watchdog de Inactividad de Tráfico (`KIOSK_IDLE_TIMEOUT_SECONDS`, default 900s / 15m):** Durante la sesión activa, si no se registra tráfico RDP bidireccional durante el periodo configurado, interrumpe la sesión forzando el cierre de sockets y liberando la memoria RAM.
+  - **Límite Máximo Absoluto por Sesión (`KIOSK_MAX_SESSION_LIFETIME_SECONDS`, default 14400s / 4h):** Límite continuo absoluto. Al alcanzarse, fuerza la desconexión y detención del contenedor efímero, emitiendo log estructurado (`max_lifetime_exceeded`).
+- **Configuración Dinámica y Persistencia (`/api/settings`):** Los parámetros de ciclo de vida pueden ajustarse en vivo desde el panel web o API REST, persistiendo en la tabla `system_settings` de SQLite con actualización inmediata en el Dispatcher sin requerir reinicios del servicio.
 
 ### B. Contenedor Quiosco Aislado (`pam-web-kiosk:latest`)
 - **Base:** Debian 12 (Bookworm) Slim.

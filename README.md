@@ -8,11 +8,16 @@ Permite acceder a consolas web de infraestructura crítica (Zabbix, switches, ro
 
 ## 🌟 Características Principales
 
-- **Arquitectura Bajo Demanda (Ephemeral On-Demand / JIT):**
-  - Consumo de **0% CPU y 0 MB RAM en reposo**.
-  - Los contenedores Docker se inician automáticamente solo cuando un operador solicita la conexión en JumpServer Luna (detección del paquete `RDP-SYN` en el Dispatcher TCP).
-  - Apagado automático programado tras **120 segundos de inactividad** después de cerrar la sesión.
+- **Arquitectura Bajo Demanda y Ciclo de Vida Estricto (Ephemeral JIT):**
+  - Consumo de **0% CPU y 0 MB RAM en reposo** (estado `IDLE`).
+  - Los contenedores Docker se inician automáticamente solo cuando un operador solicita la conexión en JumpServer Luna (detección de paquete `RDP-SYN` en el Dispatcher TCP).
+  - **Ventana de Gracia tras Desconexión (`KIOSK_DISCONNECT_GRACE_SECONDS`, default 30s):** Tolera recargas de página (F5) y microcortes de red antes de apagar el contenedor (`docker stop`) y liberar RAM.
+  - **Inactividad de Tráfico (`KIOSK_IDLE_TIMEOUT_SECONDS`, default 900s / 15 min):** Cierra sockets y detiene el contenedor si no hay tráfico RDP bidireccional.
+  - **Límite Máximo Continuo (`KIOSK_MAX_SESSION_LIFETIME_SECONDS`, default 14400s / 4 horas):** Límite absoluto por sesión para impedir contenedores huérfanos.
   - Límite de recursos estricto por sesión: `768 MB RAM`, `1 CPU`, `256 MB /dev/shm`.
+- **Configuración Dinámica de Políticas de Sesión:**
+  - Ajustables en caliente vía API REST (`GET` / `PUT /api/settings`) y desde el portal web en "Ajustes del Sistema".
+  - Persistencia en base de datos SQLite con propagación inmediata al Dispatcher activo.
 - **Integración Nativa con JumpServer v4.10.x CE (RBAC):**
   - Compatibilidad completa con el modelo Role-Based Access Control (RBAC) de JumpServer v4.
   - Creación y vinculación automática de Activos (`/api/v1/assets/hosts/`), Cuentas de Acceso RDP (`/api/v1/accounts/accounts/`) y Reglas de Autorización (`/api/v1/perms/asset-permissions/`) mediante firmas criptográficas **HMAC-SHA256**.
@@ -20,12 +25,13 @@ Permite acceder a consolas web de infraestructura crítica (Zabbix, switches, ro
 - **Auto-descubrimiento Cero Configuración:**
   - El backend accede a `/var/run/docker.sock` para inspeccionar el contenedor `jms_core` local, extrayendo o creando un `AccessKey` administrativo de forma automática y segura.
   - Detección automática de la IP del host y persistencia en `/app/data/jms_credentials.json`.
-- **Imagen de Quiosco Ultraligera (`pam-web-kiosk:v1` / `latest`):**
+- **Imagen de Quiosco Ultraligera (`pam-web-kiosk:latest`):**
   - Basada en Debian 12 Bookworm Slim + Openbox + XorgXRDP + Chromium Native.
   - Políticas gestionadas corporativas (`kiosk_policy.json`): bloquea atajos peligrosos, F12, descargas y navegación externa, habilitando el gestor de contraseñas integrado.
   - Persistencia de credenciales y cookies mediante volúmenes Docker dedicados por dispositivo (`volume_name`), con etiquetas `managed-by=jumpserver-kiosk-manager`.
 - **Dashboard Web Corporativo (`:8080`):**
   - Frontend moderno construido con **Vue 3** y **Vite**, con interfaz limpia y modo oscuro/claro corporativo.
+  - **Panel de Ajustes del Sistema:** Modifica credenciales y los 3 temporizadores de ciclo de vida con validación en vivo.
   - **Edición en Caliente:** Permite modificar URLs de destino, nombres y tipos de dispositivo en caliente.
   - **One-Click Connect:** Botón de conexión directa que abre la sesión gráfica en JumpServer Luna.
   - **Sondeo de Conectividad HTTP en Vivo:** Valida si el equipo destino responde con código HTTP y latencia en milisegundos.
@@ -61,8 +67,10 @@ Permite acceder a consolas web de infraestructura crítica (Zabbix, switches, ro
 |  +---------+----------+    | - Just-In-Time Container Start              |  |
 |            |               | - Sondeo de socket interno 3389             |  |
 |            v               | - Proxy transparente bidireccional          |  |
-|  +--------------------+    | - Temporizador de inactividad (120s)        |  |
-|  | FastAPI (:8000)    |    +------------------------------+--------------+  |
+|  +--------------------+    | - Watchdog de inactividad de tráfico (15m)  |  |
+|  | FastAPI (:8000)    |    | - Límite máximo continuo absoluto (4h)      |  |
+|  | SQLite / Settings  |    | - Ventana de gracia tras desconexión (30s)  |  |
+|  +---------+----------+    +------------------------------+--------------+  |
 |  | SQLite / WAL Mode  |                                   |                 |
 |  +---------+----------+                                   |                 |
 +------------|----------------------------------------------|-----------------+

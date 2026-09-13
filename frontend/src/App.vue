@@ -78,13 +78,89 @@ const getHeaders = () => {
   }
 }
 
-const saveCredentials = () => {
+// --- Session Lifecycle & RAM Conservation Policies ---
+const lifecycleSettings = ref({
+  disconnect_grace_seconds: 30,
+  idle_timeout_seconds: 900,
+  max_session_lifetime_seconds: 14400
+})
+const loadingSettings = ref(false)
+const savingSettings = ref(false)
+
+const openSettingsModal = () => {
+  showSettingsModal.value = true
+  fetchSettings()
+}
+
+const fetchSettings = async () => {
+  loadingSettings.value = true
+  try {
+    const res = await fetch('/api/settings', { headers: getHeaders() })
+    if (res.ok) {
+      const data = await res.json()
+      lifecycleSettings.value = {
+        disconnect_grace_seconds: data.disconnect_grace_seconds ?? 30,
+        idle_timeout_seconds: data.idle_timeout_seconds ?? 900,
+        max_session_lifetime_seconds: data.max_session_lifetime_seconds ?? 14400
+      }
+    }
+  } catch (err) {
+    console.error('Error al cargar configuración del sistema:', err)
+  } finally {
+    loadingSettings.value = false
+  }
+}
+
+const saveAllSettings = async () => {
+  const grace = Number(lifecycleSettings.value.disconnect_grace_seconds)
+  const idle = Number(lifecycleSettings.value.idle_timeout_seconds)
+  const maxLife = Number(lifecycleSettings.value.max_session_lifetime_seconds)
+
+  if (isNaN(grace) || grace < 5 || grace > 3600) {
+    showToast('Tiempo de gracia inválido (debe ser entre 5 y 3600 segundos)', 'error')
+    return
+  }
+  if (isNaN(idle) || idle < 30 || idle > 86400) {
+    showToast('Tiempo de inactividad inválido (debe ser entre 30 y 86400 segundos)', 'error')
+    return
+  }
+  if (isNaN(maxLife) || maxLife < 60 || maxLife > 604800) {
+    showToast('Límite máximo de sesión inválido (debe ser entre 60 y 604800 segundos)', 'error')
+    return
+  }
+
+  savingSettings.value = true
   localStorage.setItem('kiosk_user', authCredentials.value.user)
   localStorage.setItem('kiosk_pass', authCredentials.value.pass)
-  showSettingsModal.value = false
-  showToast('Credenciales actualizadas correctamente')
-  fetchKiosks()
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        disconnect_grace_seconds: grace,
+        idle_timeout_seconds: idle,
+        max_session_lifetime_seconds: maxLife
+      })
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      lifecycleSettings.value = updated
+      showToast('Configuración y políticas de sesión guardadas con éxito')
+      showSettingsModal.value = false
+      fetchKiosks()
+    } else {
+      const errData = await res.json().catch(() => ({}))
+      showToast(`Error al guardar configuración: ${errData.detail || res.statusText}`, 'error')
+    }
+  } catch (err) {
+    showToast('Error de red al guardar la configuración', 'error')
+  } finally {
+    savingSettings.value = false
+  }
 }
+
+const saveCredentials = saveAllSettings
 
 // --- Fetch Data ---
 const fetchKiosks = async () => {
@@ -353,6 +429,7 @@ const selectSidebar = (item) => {
 
 onMounted(() => {
   fetchKiosks()
+  fetchSettings()
   window.addEventListener('keydown', handleKeydown)
 })
 
@@ -425,7 +502,7 @@ onUnmounted(() => {
         </a>
 
         <!-- Settings Modal Trigger -->
-        <div class="jms-nav-btn" title="Ajustes de API JumpServer" @click="showSettingsModal = true">
+        <div class="jms-nav-btn" title="Ajustes de API JumpServer" @click="openSettingsModal">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -1116,31 +1193,103 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- SETTINGS / CREDENTIALS MODAL -->
+    <!-- SETTINGS / CREDENTIALS & POLICIES MODAL -->
     <div v-if="showSettingsModal" class="jms-modal-backdrop" @click.self="showSettingsModal = false">
-      <div class="jms-modal-dialog">
+      <div class="jms-modal-dialog jms-modal-dialog-lg">
         <div class="modal-head">
           <div class="modal-head-title">
-            <h3>Configuración de API & Credenciales</h3>
-            <p>Configura las credenciales de acceso para el gestor de quioscos</p>
+            <h3>Ajustes del Sistema & Políticas de Sesión</h3>
+            <p>Configura credenciales y límites temporales para optimización y ahorro de RAM</p>
           </div>
           <button class="modal-close-btn" @click="showSettingsModal = false">&times;</button>
         </div>
 
-        <form @submit.prevent="saveCredentials" class="modal-body-form">
-          <div class="form-item">
-            <label class="form-label required">Usuario Administrador</label>
-            <input v-model="authCredentials.user" required />
+        <form @submit.prevent="saveAllSettings" class="modal-body-form">
+          <!-- SECCIÓN 1: CREDENCIALES PORTAL -->
+          <div class="settings-section">
+            <h4 class="settings-section-title">🔑 Credenciales de Acceso al Portal</h4>
+            <div class="form-row">
+              <div class="form-item flex-1">
+                <label class="form-label required">Usuario Administrador</label>
+                <input v-model="authCredentials.user" required />
+              </div>
+              <div class="form-item flex-1">
+                <label class="form-label required">Contraseña / Token</label>
+                <input v-model="authCredentials.pass" type="password" required />
+              </div>
+            </div>
           </div>
 
-          <div class="form-item">
-            <label class="form-label required">Contraseña / Token</label>
-            <input v-model="authCredentials.pass" type="password" required />
+          <!-- SECCIÓN 2: POLÍTICAS DE CICLO DE VIDA Y LIBERACIÓN DE MEMORIA -->
+          <div class="settings-section">
+            <div class="section-title-with-badge">
+              <h4 class="settings-section-title">⏱️ Políticas de Ciclo de Vida y Liberación de RAM</h4>
+              <span class="badge-saving">0% RAM en Reposo</span>
+            </div>
+
+            <!-- 1. Ventana de gracia tras desconexión -->
+            <div class="form-item">
+              <div class="label-with-calc">
+                <label class="form-label required">Ventana de Gracia tras Desconexión (segundos)</label>
+                <span class="calc-badge">Tolerancia F5 / red</span>
+              </div>
+              <input 
+                v-model.number="lifecycleSettings.disconnect_grace_seconds" 
+                type="number" 
+                min="5" 
+                max="3600" 
+                required 
+              />
+              <span class="field-hint">
+                Tiempo de espera antes de apagar el contenedor cuando el operador cierra la pestaña o pierde conexión (por defecto: 30s).
+              </span>
+            </div>
+
+            <!-- 2. Inactividad por falta de tráfico -->
+            <div class="form-item">
+              <div class="label-with-calc">
+                <label class="form-label required">Tiempo de Inactividad de Tráfico (segundos)</label>
+                <span class="calc-badge">Equivale a {{ (lifecycleSettings.idle_timeout_seconds / 60).toFixed(1) }} min</span>
+              </div>
+              <input 
+                v-model.number="lifecycleSettings.idle_timeout_seconds" 
+                type="number" 
+                min="30" 
+                max="86400" 
+                required 
+              />
+              <span class="field-hint">
+                Cierra forzosamente la sesión y apaga el contenedor si no se detecta tráfico RDP en este lapso (por defecto: 900s / 15m).
+              </span>
+            </div>
+
+            <!-- 3. Límite máximo continuo absoluto -->
+            <div class="form-item">
+              <div class="label-with-calc">
+                <label class="form-label required">Límite Máximo Absoluto por Sesión (segundos)</label>
+                <span class="calc-badge">Equivale a {{ (lifecycleSettings.max_session_lifetime_seconds / 3600).toFixed(1) }} h</span>
+              </div>
+              <input 
+                v-model.number="lifecycleSettings.max_session_lifetime_seconds" 
+                type="number" 
+                min="60" 
+                max="604800" 
+                required 
+              />
+              <span class="field-hint">
+                Límite máximo continuo ininterrumpido. Al cumplirse, se fuerza el cierre para liberar memoria RAM (por defecto: 14400s / 4h).
+              </span>
+            </div>
           </div>
 
           <div class="modal-foot">
-            <button type="button" class="jms-btn jms-btn-default" @click="showSettingsModal = false">Cancelar</button>
-            <button type="submit" class="jms-btn jms-btn-primary">Guardar Credenciales</button>
+            <button type="button" class="jms-btn jms-btn-default" @click="showSettingsModal = false" :disabled="savingSettings">
+              Cancelar
+            </button>
+            <button type="submit" class="jms-btn jms-btn-primary" :disabled="savingSettings">
+              <span v-if="savingSettings">Guardando...</span>
+              <span v-else>Guardar Ajustes y Políticas</span>
+            </button>
           </div>
         </form>
       </div>
@@ -2292,6 +2441,60 @@ onUnmounted(() => {
   gap: 10px;
   padding-top: 8px;
   border-top: 1px solid var(--jms-border-extra-light);
+}
+
+.jms-modal-dialog-lg {
+  max-width: 580px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--jms-border-extra-light);
+}
+
+.settings-section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--jms-text-primary);
+  margin: 0;
+}
+
+.section-title-with-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badge-saving {
+  font-size: 11px;
+  font-weight: 600;
+  color: #148F76;
+  background: rgba(20, 143, 118, 0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.label-with-calc {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.calc-badge {
+  font-size: 11px;
+  color: var(--jms-primary);
+  font-weight: 600;
+  background: rgba(20, 143, 118, 0.08);
+  padding: 1px 7px;
+  border-radius: 3px;
 }
 
 .spinning {

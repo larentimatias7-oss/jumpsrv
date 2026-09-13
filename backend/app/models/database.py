@@ -48,9 +48,31 @@ class KioskModel(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 
+class SystemSettingModel(Base):
+    __tablename__ = "system_settings"
+
+    key = Column(String(64), primary_key=True)
+    value = Column(String(255), nullable=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
 def init_db(db_url: str = None):
     if not db_url:
-        db_url = os.getenv("DATABASE_URL", "sqlite:////root/jumpserver-kiosk-manager/kiosk.db")
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            if os.path.exists("/app/data"):
+                db_url = "sqlite:////app/data/kiosk.db"
+            else:
+                db_url = "sqlite:///./kiosk.db"
+
+    if "sqlite:///" in db_url and not db_url.startswith("sqlite:///:memory:"):
+        path_part = db_url.replace("sqlite:///", "")
+        parent = os.path.dirname(path_part)
+        if parent and not os.path.exists(parent):
+            try:
+                os.makedirs(parent, exist_ok=True)
+            except Exception:
+                pass
     engine = create_engine(
         db_url,
         connect_args={"check_same_thread": False},
