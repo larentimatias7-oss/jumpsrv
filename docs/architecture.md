@@ -28,7 +28,7 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
 - **Base:** Debian 12 (Bookworm) Slim.
 - **Gestor de Pantalla:** XRDP + backend nativo `xorgxrdp` + servidor Xorg con aceleración por software optimizada.
 - **Gestor de Ventanas:** `openbox` (ultraligero, consumo <20 MB RAM, sin barras de tareas ni menús contextuales).
-- **Navegador Web:** Chromium en modo `--kiosk` y `--app="TARGET_URL"`.
+- **Navegador Web:** Chromium en modo ventana maximizada (`--app="TARGET_URL"`, `--start-maximized`, `--disable-hang-monitor`).
 - **Inyección de Entorno:** El script `entrypoint.sh` inyecta las variables del contenedor (`TARGET_URL`, `KIOSK_NAME`) en `/etc/environment`, permitiendo que la sesión PAM no privilegiada (`kiosk`) navegue directamente a la URL indicada sin intermediarios ni pantallas en blanco.
 - **Hardening Dinámico de Políticas Corporativas:** `entrypoint.sh` genera dinámicamente `/etc/chromium/policies/managed/kiosk_policy.json` bloqueando esquemas internos y protocolos no deseados (`chrome://*`, `chrome-extension://*`, `edge://*`, `file://*`, `ftp://*`, `javascript://*`), desactivando DevTools (`DeveloperToolsAvailability: 2`), prohibiendo descargas (`DownloadRestrictions: 3`) y deshabilitando impresión.
 - **Optimización de Almacenamiento y Retención de Credenciales:**

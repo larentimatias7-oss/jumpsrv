@@ -48,26 +48,19 @@ EOF
 openbox &
 sleep 0.5
 
-# Ejecutar Chromium directamente en la sesión gráfica del usuario
+# Ejecutar Chromium directamente en la sesión gráfica
 exec chromium \
-  --kiosk \
   --start-maximized \
   --window-position=0,0 \
   --no-first-run \
-  --disable-pinch \
-  --overscroll-history-navigation=0 \
+  --no-sandbox \
+  --disable-gpu \
+  --disable-dev-shm-usage \
+  --disable-hang-monitor \
   --disable-features=TranslateUI \
   --disable-sync \
   --no-default-browser-check \
   --password-store=basic \
-  --enable-features=PasswordManager \
-  --disk-cache-size=33554432 \
-  --media-cache-size=16777216 \
-  --disable-application-cache \
-  --disable-gpu-program-cache \
-  --no-sandbox \
-  --disable-gpu \
-  --disable-dev-shm-usage \
   --ignore-certificate-errors \
   --test-type \
   --ozone-platform=x11 \
