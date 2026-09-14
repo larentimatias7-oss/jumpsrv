@@ -13,6 +13,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - JMS_VERIFY_SSL=${JMS_VERIFY_SSL:-true}
 
   frontend:
     build:

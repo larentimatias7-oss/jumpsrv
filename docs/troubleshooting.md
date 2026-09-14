@@ -101,3 +101,15 @@
   ```
 - **Solución:**
   - Si devuelve `Connection Refused` o timeout, verificar la IP, máscara de red, enrutamiento en Proxmox/switch y que el servidor web del dispositivo destino esté escuchando en el puerto configurado.
+
+---
+
+## 8. Falla del Portapapeles en JumpServer Luna (`navigator.clipboard api not found`)
+
+- **Síntoma:** Al abrir una sesión de quiosco en JumpServer Luna (`/luna/`), no es posible pegar contraseñas o texto en la consola web remota, o la consola del navegador arroja el error `navigator.clipboard api not found`.
+- **Causa:** La especificación W3C para la API `navigator.clipboard` exige estrictamente un **Contexto Seguro (Secure Context)**. Si JumpServer opera sobre HTTP plano (`http://<SERVER_IP>/`), los navegadores modernos (Chrome, Firefox, Edge) bloquean el acceso al portapapeles por seguridad.
+- **Solución:**
+  1. Habilitar HTTPS en JumpServer (incluso con certificado autofirmado con SAN IP). Consulte el procedimiento detallado en la [Guía de Despliegue](deployment.md#1-requisitos-de-jumpserver-habilitación-de-https-para-portapapeles-en-luna).
+  2. Al acceder por `https://<SERVER_IP>/luna/`, autorizar el permiso de lectura y escritura del portapapeles cuando el navegador lo solicite.
+  3. En el archivo `.env` de Kiosk Manager, si se apunta internamente a JumpServer por HTTPS con certificado autofirmado, configurar `JMS_VERIFY_SSL=false` para que el backend de Kiosk Manager no falle por `SSLCertVerificationError`.
+

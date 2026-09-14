@@ -42,10 +42,27 @@ class JumpServerSettings(BaseSettings):
         default_factory=lambda: os.getenv("JUMPSERVER_ORG_ID", os.getenv("JMS_ORG_ID", "00000000-0000-0000-0000-000000000002")),
         description="Default org UUID in JumpServer 4.x",
     )
-    verify_ssl: bool = Field(default=False, description="Verify SSL certificate")
+    verify_ssl: bool = Field(
+        default_factory=lambda: os.getenv("JMS_VERIFY_SSL", os.getenv("JUMPSERVER_VERIFY_SSL", "true")).strip().lower() in ("1", "true", "yes", "on", "t"),
+        description="Verify SSL certificate",
+    )
     ca_bundle: Path | None = Field(default=None, description="Custom CA bundle")
     timeout: float = Field(default=30.0, description="HTTP timeout seconds")
     max_retries: int = Field(default=3, description="Max HTTP retries")
+
+    @field_validator("verify_ssl", mode="before")
+    @classmethod
+    def _validate_verify_ssl(cls, v: Any) -> bool:
+        if v is None:
+            raw = os.getenv("JMS_VERIFY_SSL", os.getenv("JUMPSERVER_VERIFY_SSL", "true"))
+            v = raw
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, (int, float)):
+            return bool(v)
+        if isinstance(v, str):
+            return v.strip().lower() in ("1", "true", "yes", "on", "t")
+        return bool(v)
 
     @field_validator("org_id", mode="before")
     @classmethod

@@ -539,6 +539,10 @@
       <div class="alert-box success">
         <strong>💡 Consejo Pro:</strong> La primera vez que inicies sesión en la web del dispositivo (ej. usuario <code>Admin</code> / clave <code>zabbix</code>), permite que Chromium guarde la contraseña. Gracias al volumen persistente dedicado, no tendrás que volver a escribirla en futuras sesiones.
       </div>
+
+      <div class="alert-box info" style="margin-top: 12px;">
+        <strong>🔒 Portapapeles en Luna:</strong> Para pegar contraseñas o comandos directamente en la consola web, asegúrate de acceder a JumpServer bajo <strong>HTTPS</strong> y permitir el acceso al portapapeles cuando el navegador lo solicite.
+      </div>
     </section>
 
     <!-- Políticas de Ciclo de Vida y RAM -->
@@ -674,6 +678,12 @@
       <div style="margin-bottom: 20px;">
         <h3 style="font-size: 1.05rem; margin-bottom: 6px; color: var(--text-primary);">¿Qué hago si cambié la IP o ruta de un equipo?</h3>
         <p>No necesitas borrar el dispositivo y crearlo de nuevo. Simplemente haz clic en el botón <strong>✏️ Editar</strong>, ingresa la nueva URL (ej: <code>http://192.168.1.110/zabbix/</code>) y presiona "Guardar Cambios". En tu próxima conexión, el quiosco abrirá la nueva ruta automáticamente.</p>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 1.05rem; margin-bottom: 6px; color: var(--text-primary);">📋 ¿Por qué falla el portapapeles o no puedo pegar credenciales en JumpServer Luna?</h3>
+        <p>Los navegadores modernos (Chrome, Edge, Firefox) exigen estrictamente un <strong>Contexto Seguro (HTTPS)</strong> para permitir el acceso a la API del portapapeles (<code>navigator.clipboard</code>). Si accedes a JumpServer mediante HTTP plano (<code>http://...</code>), el navegador bloquea la lectura del portapapeles y arroja el error <code>navigator.clipboard api not found</code>.</p>
+        <p style="margin-top: 6px;"><strong>Solución:</strong> Asegúrate de acceder a JumpServer mediante <strong>HTTPS</strong> (ej: <code>https://&lt;IP_SERVIDOR&gt;/</code>) y aceptar los permisos de lectura del portapapeles cuando el navegador lo solicite al abrir la consola de Luna.</p>
       </div>
 
       <div style="margin-bottom: 20px;">

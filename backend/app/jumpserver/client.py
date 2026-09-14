@@ -28,6 +28,7 @@ class JumpServerClient:
         self._base = urlunparse((parsed.scheme, parsed.netloc, "", "", "", ""))
         self._secret = self.config.load_secret()
         self._verify = str(self.config.ca_bundle) if self.config.ca_bundle else self.config.verify_ssl
+        logger.debug("JumpServerClient initialized: base_url=%s, verify_ssl=%s", self._base, self._verify)
 
     def _headers(self, method: str, path: str) -> dict[str, str]:
         key_id = self.config.get_key_id()

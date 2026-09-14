@@ -169,6 +169,45 @@ docker compose up -d
    docker compose up -d
    ```
 
+### Requisitos de JumpServer: Habilitación de HTTPS para Portapapeles en Luna
+
+> ⚠️ **Contexto Seguro Obligatorio (W3C Secure Context):**  
+> JumpServer Luna exige estrictamente un contexto seguro (**HTTPS**) para que los navegadores web modernos permitan el acceso a la API `navigator.clipboard`. Sin HTTPS, el portapapeles bidireccional falla con `navigator.clipboard api not found` y bloquea la entrada al pegar credenciales en consolas web remotas.  
+> Al operar JumpServer en HTTPS con certificados autofirmados o CA privadas, el cliente HTTP del backend de `kiosk-manager` debe configurarse con `JMS_VERIFY_SSL=false` para consumir la API de JumpServer sin fallar por `SSLCertVerificationError`.
+
+#### 1. Generación de certificados autofirmados con SAN IP:
+```bash
+mkdir -p /opt/jumpserver/config/nginx/cert
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout /opt/jumpserver/config/nginx/cert/server.key \
+  -out /opt/jumpserver/config/nginx/cert/server.crt \
+  -subj "/C=AR/ST=Santa Fe/L=Rosario/O=Milicic/CN=<SERVER_IP>" \
+  -addext "subjectAltName=IP:<SERVER_IP>,IP:127.0.0.1"
+```
+
+#### 2. Parámetros requeridos en `/opt/jumpserver/config/config.txt`:
+```ini
+USE_SSL=true
+SSL_CERTIFICATE=server.crt
+SSL_CERTIFICATE_KEY=server.key
+DOMAINS=<SERVER_IP>
+CSRF_TRUSTED_ORIGINS=https://<SERVER_IP>,http://<SERVER_IP>
+```
+
+#### 3. Apertura de firewall y reinicio de JumpServer:
+```bash
+sudo ufw allow 443/tcp
+jmsctl restart
+```
+
+#### 4. Ajuste en Kiosk Manager (`.env`):
+Si `kiosk-manager` apunta internamente por HTTPS a un certificado autofirmado:
+```dotenv
+JMS_BASE_URL=https://127.0.0.1:443
+JMS_VERIFY_SSL=false
+```
+Para una guía paso a paso completa, consulte la [Guía de Despliegue en Producción](docs/deployment.md).
+
 ---
 
 ## 🧪 Pruebas y Validación
@@ -201,6 +240,7 @@ python3 scripts/e2e_test_runner.py
 
 ## 📖 Documentación Técnica
 
+- [Guía de Despliegue en Producción](docs/deployment.md): Guía oficial de despliegue, configuración HTTPS con SAN IP para portapapeles en Luna y variables de entorno.
 - [Manual de Instalación y Despliegue en Producción (HTML)](docs/manual_instalacion_kiosk_manager.html): Guía exhaustiva e interactiva con matriz de puertos, firewall, despliegue Greenfield y sobre servidores con JumpServer existente.
 - [Guía de Arquitectura](docs/architecture.md): Detalles técnicos del ciclo de vida bajo demanda, relay TCP y compatibilidad RBAC.
 - [Guía de Aprovisionamiento](docs/provisioning.md): Flujo paso a paso de registro de activos, firmas HMAC-SHA256 y rollback no destructivo.

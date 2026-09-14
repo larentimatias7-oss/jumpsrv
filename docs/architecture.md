@@ -74,3 +74,7 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
 - Servida por **Nginx** en el puerto `8080` que actúa como reverse proxy hacia la API FastAPI (`127.0.0.1:8000/api/`).
 - Admite operaciones CRUD completas (`GET`, `POST`, `PUT`, `DELETE`), pruebas de conectividad de destino en vivo (`test-url`), limpieza de caché de Chromium, reinicio y acceso directo con un clic a JumpServer Luna.
 
+### F. Seguridad en Luna y Contexto Seguro W3C (HTTPS / Portapapeles)
+- **Restricción W3C Secure Context:** Para habilitar la API `navigator.clipboard` que permite copiar y pegar credenciales y comandos entre la estación de trabajo y la sesión remota en JumpServer Luna, los navegadores modernos exigen estrictamente una conexión segura **HTTPS** (o `localhost`). En conexiones HTTP no seguras, el navegador bloquea el acceso (`navigator.clipboard api not found`).
+- **Soporte de Conectividad `JMS_VERIFY_SSL`:** Al desplegar JumpServer en HTTPS con certificados autofirmados con SAN IP, el cliente HTTP de `kiosk-manager` soporta la bandera `JMS_VERIFY_SSL=false` (o montaje de CA bundle corporativo mediante `JMS_CA_BUNDLE`), evitando fallos por `SSLCertVerificationError` durante el aprovisionamiento y sincronización de activos.
+
