@@ -33,6 +33,80 @@ const authCredentials = ref({
   pass: localStorage.getItem('kiosk_pass') || 'admin'
 })
 
+// JumpServer Delegated Auth State
+const currentUser = ref(null)
+const authLoading = ref(true)
+const authError = ref(false)
+const jmsLoginUrl = ref('https://172.30.20.62/ui/#/login')
+const jmsLogoutUrl = ref('https://172.30.20.62/ui/#/logout')
+
+// --- API Helpers & JumpServer Session Verification ---
+const getHeaders = () => {
+  const headers = {
+    'Content-Type': 'application/json'
+  }
+  if (authCredentials.value.user && authCredentials.value.pass) {
+    const token = btoa(`${authCredentials.value.user}:${authCredentials.value.pass}`)
+    headers['Authorization'] = `Basic ${token}`
+  }
+  return headers
+}
+
+const apiFetch = async (url, options = {}) => {
+  const mergedHeaders = {
+    ...getHeaders(),
+    ...(options.headers || {})
+  }
+  const opts = {
+    ...options,
+    headers: mergedHeaders,
+    credentials: 'include'
+  }
+  const res = await fetch(url, opts)
+  if (res.status === 401) {
+    currentUser.value = null
+    authError.value = true
+  }
+  return res
+}
+
+const checkAuthentication = async () => {
+  authLoading.value = true
+  try {
+    const res = await fetch('/api/auth/me', {
+      headers: getHeaders(),
+      credentials: 'include'
+    })
+    if (res.ok) {
+      const data = await res.json()
+      currentUser.value = data
+      authError.value = false
+      return true
+    } else {
+      currentUser.value = null
+      authError.value = true
+      return false
+    }
+  } catch (err) {
+    console.error('Error al verificar sesión JumpServer:', err)
+    currentUser.value = null
+    authError.value = true
+    return false
+  } finally {
+    authLoading.value = false
+  }
+}
+
+const retryAuthentication = async () => {
+  const ok = await checkAuthentication()
+  if (ok) {
+    fetchKiosks()
+    fetchCategories()
+    fetchSettings()
+    resetAutoRefreshTimer()
+  }
+}
+
 // --- Session Lifecycle & RAM Conservation Policies ---
 const lifecycleSettings = ref({
   disconnect_grace_seconds: 30,
@@ -51,7 +125,7 @@ const openSettingsModal = () => {
 const fetchSettings = async () => {
   loadingSettings.value = true
   try {
-    const res = await fetch('/api/settings', { headers: getHeaders() })
+    const res = await apiFetch('/api/settings')
     if (res.ok) {
       const data = await res.json()
       lifecycleSettings.value = {
@@ -96,9 +170,8 @@ const saveAllSettings = async () => {
   localStorage.setItem('kiosk_pass', authCredentials.value.pass)
 
   try {
-    const res = await fetch('/api/settings', {
+    const res = await apiFetch('/api/settings', {
       method: 'PUT',
-      headers: getHeaders(),
       body: JSON.stringify({
         disconnect_grace_seconds: grace,
         idle_timeout_seconds: idle,
@@ -181,20 +254,12 @@ const showToast = (msg, type = 'success') => {
   setTimeout(() => { notification.value = null }, 4000)
 }
 
-// --- API Helpers ---
-const getHeaders = () => {
-  const token = btoa(`${authCredentials.value.user}:${authCredentials.value.pass}`)
-  return {
-    'Authorization': `Basic ${token}`,
-    'Content-Type': 'application/json'
-  }
-}
 
 // --- Fetch Data ---
 const fetchKiosks = async (showLoading = true) => {
   if (showLoading) loading.value = true
   try {
-    const res = await fetch('/api/kiosks', { headers: getHeaders() })
+    const res = await apiFetch('/api/kiosks')
     if (res.ok) {
       kiosks.value = await res.json()
     } else if (res.status === 401 && showLoading) {
@@ -212,9 +277,8 @@ const fetchKiosks = async (showLoading = true) => {
 // --- CRUD Actions ---
 const createKiosk = async () => {
   try {
-    const res = await fetch('/api/kiosks', {
+    const res = await apiFetch('/api/kiosks', {
       method: 'POST',
-      headers: getHeaders(),
       body: JSON.stringify(form.value)
     })
     const data = await res.json()
@@ -254,9 +318,8 @@ const openEditModal = (kiosk) => {
 
 const saveKioskEdit = async () => {
   try {
-    const res = await fetch(`/api/kiosks/${editForm.value.id}`, {
+    const res = await apiFetch(`/api/kiosks/${editForm.value.id}`, {
       method: 'PUT',
-      headers: getHeaders(),
       body: JSON.stringify({
         name: editForm.value.name,
         device_type: editForm.value.device_type,
@@ -280,7 +343,7 @@ const saveKioskEdit = async () => {
 const fetchCategories = async () => {
   loadingCategories.value = true
   try {
-    const res = await fetch('/api/categories', { headers: getHeaders() })
+    const res = await apiFetch('/api/categories')
     if (res.ok) {
       const data = await res.json()
       categories.value = data
@@ -298,9 +361,8 @@ const fetchCategories = async () => {
 const syncJmsNodes = async () => {
   syncingJms.value = true
   try {
-    const res = await fetch('/api/categories/sync-jms-nodes', {
-      method: 'POST',
-      headers: getHeaders()
+    const res = await apiFetch('/api/categories/sync-jms-nodes', {
+      method: 'POST'
     })
     if (res.ok) {
       const data = await res.json()
@@ -321,9 +383,8 @@ const reconcilingJms = ref(false)
 const reconcileJmsAssets = async () => {
   reconcilingJms.value = true
   try {
-    const res = await fetch('/api/kiosks/reconcile-jms', {
-      method: 'POST',
-      headers: getHeaders()
+    const res = await apiFetch('/api/kiosks/reconcile-jms', {
+      method: 'POST'
     })
     if (res.ok) {
       const data = await res.json()
@@ -345,9 +406,8 @@ const reconcileJmsAssets = async () => {
 
 const stopKioskSession = async (kiosk) => {
   try {
-    const res = await fetch(`/api/kiosks/${kiosk.id}/stop`, {
-      method: 'POST',
-      headers: getHeaders()
+    const res = await apiFetch(`/api/kiosks/${kiosk.id}/stop`, {
+      method: 'POST'
     })
     if (res.ok) {
       showToast(`Sesión detenida para "${kiosk.name}". 768 MB RAM liberados.`)
@@ -363,7 +423,7 @@ const stopKioskSession = async (kiosk) => {
 const testConnectivity = async (kiosk) => {
   urlTestResults.value[kiosk.id] = { testing: true }
   try {
-    const res = await fetch(`/api/kiosks/${kiosk.id}/test-url`, { headers: getHeaders() })
+    const res = await apiFetch(`/api/kiosks/${kiosk.id}/test-url`)
     const data = await res.json()
     urlTestResults.value[kiosk.id] = {
       testing: false,
@@ -396,7 +456,7 @@ const testEditUrl = async () => {
   editUrlTesting.value = true
   editUrlTestResult.value = null
   try {
-    const res = await fetch(`/api/kiosks/${editForm.value.id}/test-url`, { headers: getHeaders() })
+    const res = await apiFetch(`/api/kiosks/${editForm.value.id}/test-url`)
     const data = await res.json()
     editUrlTestResult.value = data
   } catch (err) {
@@ -411,9 +471,8 @@ const clearCache = async (kiosk) => {
     return
   }
   try {
-    const res = await fetch(`/api/kiosks/${kiosk.id}/clear-cache`, {
-      method: 'POST',
-      headers: getHeaders()
+    const res = await apiFetch(`/api/kiosks/${kiosk.id}/clear-cache`, {
+      method: 'POST'
     })
     if (res.ok) {
       showToast(`Caché limpiada para ${kiosk.name}`)
@@ -428,9 +487,8 @@ const clearCache = async (kiosk) => {
 
 const restartKiosk = async (id, name) => {
   try {
-    const res = await fetch(`/api/kiosks/${id}/restart`, {
-      method: 'POST',
-      headers: getHeaders()
+    const res = await apiFetch(`/api/kiosks/${id}/restart`, {
+      method: 'POST'
     })
     if (res.ok) {
       showToast(`Reinicio iniciado para ${name || 'el quiosco'}`)
@@ -448,9 +506,8 @@ const deleteKiosk = async (id, name) => {
     return
   }
   try {
-    const res = await fetch(`/api/kiosks/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders()
+    const res = await apiFetch(`/api/kiosks/${id}`, {
+      method: 'DELETE'
     })
     if (res.ok) {
       showToast(`Quiosco "${name}" eliminado correctamente`)
@@ -707,12 +764,15 @@ const onSystemThemeChange = (e) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   initTheme()
-  fetchKiosks()
-  fetchCategories()
-  fetchSettings()
-  resetAutoRefreshTimer()
+  const authenticated = await checkAuthentication()
+  if (authenticated) {
+    fetchKiosks()
+    fetchCategories()
+    fetchSettings()
+    resetAutoRefreshTimer()
+  }
   window.addEventListener('keydown', handleKeydown)
   systemThemeMediaQuery.addEventListener('change', onSystemThemeChange)
 })
@@ -842,7 +902,12 @@ onUnmounted(() => {
               <circle cx="12" cy="7" r="4"/>
             </svg>
           </div>
-          <span class="jms-username">{{ authCredentials.user }}</span>
+          <span class="jms-username" v-if="currentUser">
+            👤 {{ currentUser.name || currentUser.username }} ({{ currentUser.username }})
+          </span>
+          <span class="jms-username" v-else>
+            {{ authCredentials.user }}
+          </span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
@@ -863,9 +928,9 @@ onUnmounted(() => {
               🚀 Manual de Despliegue
             </a>
             <div class="dropdown-divider"></div>
-            <div class="dropdown-item danger" @click="authCredentials.user = ''; authCredentials.pass = ''; saveCredentials()">
-              🚪 Salir
-            </div>
+            <a :href="jmsLogoutUrl" class="dropdown-item danger">
+              🚪 Cerrar Sesión JumpServer
+            </a>
           </div>
         </div>
       </div>
@@ -880,8 +945,55 @@ onUnmounted(() => {
       </div>
     </transition>
 
+    <!-- AUTH LOADING STATE -->
+    <div v-if="authLoading" class="auth-loading-container">
+      <div class="auth-loading-spinner"></div>
+      <p>Verificando sesión activa en JumpServer...</p>
+    </div>
+
+    <!-- AUTH GUARD: SESIÓN JUMPSERVER REQUERIDA -->
+    <div v-else-if="authError" class="auth-guard-container">
+      <div class="auth-guard-card">
+        <div class="auth-guard-icon-wrap">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="auth-guard-icon">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <div class="auth-guard-badge">JumpServer Enterprise PAM</div>
+        <h2 class="auth-guard-title">Acceso Restringido - Sesión JumpServer Requerida</h2>
+        <p class="auth-guard-desc">
+          No se detectó una sesión activa en JumpServer. Por favor inicie sesión en el bastión corporativo para operar la plataforma de quioscos.
+        </p>
+        <div class="auth-guard-actions">
+          <a :href="jmsLoginUrl" class="auth-guard-btn-primary" target="_self">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+              <polyline points="10 17 15 12 10 7"/>
+              <line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            Iniciar Sesión en JumpServer
+          </a>
+          <button class="auth-guard-btn-secondary" @click="retryAuthentication">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"/>
+              <polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Reintentar Verificación
+          </button>
+        </div>
+        <div class="auth-guard-footer">
+          <span>Servidor Bastión: <code>172.30.20.62</code></span>
+          <span class="dot">•</span>
+          <span>Milicic S.A. Construcciones y Servicios</span>
+        </div>
+      </div>
+    </div>
+
     <!-- BODY CONTAINER (Sidebar + Main Content) -->
-    <div class="jms-main-body">
+    <template v-else>
+      <div class="jms-main-body">
       <!-- LEFT SIDEBAR MENU -->
       <aside class="jms-sidebar">
         <!-- Consola Section Header -->
@@ -1793,6 +1905,7 @@ onUnmounted(() => {
         </form>
       </div>
     </div>
+    </template>
   </div>
 </template>
 

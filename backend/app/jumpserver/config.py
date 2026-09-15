@@ -57,6 +57,22 @@ class JumpServerSettings(BaseSettings):
         default_factory=lambda: os.getenv("JMS_DEFAULT_NODE_ID", os.getenv("JUMPSERVER_DEFAULT_NODE_ID", None)),
         description="Optional static JumpServer node UUID",
     )
+    public_url: str = Field(
+        default_factory=lambda: os.getenv("KIOSK_MANAGER_PUBLIC_URL", "http://172.30.20.62:8000"),
+        description="Public URL for kiosk manager web application in JumpServer",
+    )
+    sync_web_app_enabled: bool = Field(
+        default_factory=lambda: os.getenv("JMS_SYNC_WEB_APP_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on", "t"),
+        description="Whether to register the kiosk manager web app in JumpServer at startup",
+    )
+    login_url: str = Field(
+        default_factory=lambda: os.getenv("JMS_LOGIN_URL", "https://172.30.20.62/ui/#/login"),
+        description="JumpServer login portal URL for redirecting unauthenticated users",
+    )
+    logout_url: str = Field(
+        default_factory=lambda: os.getenv("JMS_LOGOUT_URL", "https://172.30.20.62/ui/#/logout"),
+        description="JumpServer logout URL",
+    )
 
     @field_validator("verify_ssl", mode="before")
     @classmethod

@@ -336,3 +336,71 @@ class JumpServerClient:
                 return True
             logger.warning("Unexpected error deleting JumpServer asset %s: %s", asset_id, e)
             return False
+
+    def list_web_applications(self, name: str | None = None) -> list[dict[str, Any]]:
+        """List web applications registered in JumpServer via /api/v1/applications/applications/."""
+        params: dict[str, Any] = {"type": "web"}
+        if name:
+            params["name"] = name
+        try:
+            res = self.get("/api/v1/applications/applications/", **params)
+            if isinstance(res, list):
+                return res
+            if isinstance(res, dict):
+                return res.get("results", [])
+        except Exception as e:
+            logger.warning("Failed to list web applications from JumpServer: %s", e)
+        return []
+
+    def get_web_application_by_name(self, name: str) -> dict[str, Any] | None:
+        """Find a web application by its exact name."""
+        if not name:
+            return None
+        target = name.strip().lower()
+        apps = self.list_web_applications(name=name)
+        for app in apps:
+            if isinstance(app, dict) and app.get("name", "").strip().lower() == target:
+                return app
+        return None
+
+    def create_web_application(
+        self,
+        name: str,
+        url: str,
+        comment: str = "Acceso directo a la plataforma Kiosk Manager",
+    ) -> dict[str, Any]:
+        """Create a new Web Application in JumpServer."""
+        payload = {
+            "name": name,
+            "type": "web",
+            "category": "web",
+            "attrs": {
+                "url": url,
+            },
+            "comment": comment,
+        }
+        return self.post("/api/v1/applications/applications/", payload)
+
+    def ensure_web_application_asset(
+        self,
+        name: str = "Agregar Sitio WEB",
+        public_url: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Idempotently ensure that the Kiosk Manager web application exists in JumpServer.
+        If already present, returns the existing record. If missing, registers it.
+        """
+        url = public_url or getattr(self.config, "public_url", "http://172.30.20.62:8000")
+        try:
+            existing = self.get_web_application_by_name(name)
+            if existing:
+                logger.info("JumpServer Web Application '%s' already registered (idempotent)", name)
+                return existing
+
+            logger.info("Registering JumpServer Web Application '%s' with URL %s", name, url)
+            created = self.create_web_application(name=name, url=url)
+            logger.info("JumpServer Web Application '%s' created successfully: id=%s", name, created.get("id"))
+            return created
+        except Exception as e:
+            logger.warning("Failed to ensure Web Application '%s' in JumpServer: %s", name, e)
+            return {}

@@ -177,6 +177,7 @@ class KioskProvisioner:
         rdp_probe_timeout: float = 10.0,
         rdp_host: Optional[str] = None,
         rdp_port: Optional[int] = None,
+        created_by: str = "kiosk-manager",
     ) -> Dict[str, Any]:
         clean_name = req.name.strip().upper()
         if not req.target_url:
@@ -280,6 +281,7 @@ class KioskProvisioner:
                 node_id=resolved_node_id,
                 platform_id=5,
                 category_name=cat_name,
+                created_by=created_by,
             )
             jms_asset_id = jms_asset.get("id")
             created_resources.append(("jms_asset", jms_asset_id))

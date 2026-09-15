@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from ..auth.basic_auth import verify_credentials
+from ..auth.jms_auth import get_current_user
 from ..config import (
     SessionLifecycleSettings,
     get_lifecycle_settings,
@@ -11,9 +12,15 @@ from ..config import (
 from ..provisioning.provisioner import KioskProvisioner, KioskCreateRequest, KioskUpdateRequest
 from ..services.category import CategoryService
 
-router = APIRouter(dependencies=[Depends(verify_credentials)])
+router = APIRouter(dependencies=[Depends(get_current_user)])
 provisioner = KioskProvisioner()
 category_service = CategoryService(provisioner.jms.client)
+
+
+@router.get("/auth/me", response_model=Dict[str, Any])
+def get_current_user_profile(user: Dict[str, Any] = Depends(get_current_user)):
+    """Return the profile of the currently authenticated JumpServer operator."""
+    return user
 
 
 class CategoryCreateRequest(BaseModel):
@@ -56,9 +63,10 @@ def list_kiosks():
 
 
 @router.post("/kiosks", status_code=status.HTTP_201_CREATED)
-async def create_kiosk(req: KioskCreateRequest):
+async def create_kiosk(req: KioskCreateRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
     try:
-        res = provisioner.provision(req)
+        operator_username = current_user.get("username") or "kiosk-manager"
+        res = provisioner.provision(req, created_by=operator_username)
         # Register new port with dispatcher
         from ..main import dispatcher
         from ..provisioning.provisioner import detect_host_ip

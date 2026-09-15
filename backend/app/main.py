@@ -23,6 +23,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,6 +79,24 @@ async def startup_event():
 
     # Launch periodic orphan garbage collection
     asyncio.create_task(auto_reconcile_loop())
+
+    # Ensure JumpServer Web Application asset ("Agregar Sitio WEB") is registered
+    from .jumpserver.config import get_jms_settings
+    jms_settings = get_jms_settings()
+    if getattr(jms_settings, "sync_web_app_enabled", True):
+        from .api.routes import provisioner
+        async def sync_web_app():
+            try:
+                logger.info("Checking JumpServer Web Application asset ('Agregar Sitio WEB')...")
+                res = provisioner.jms.ensure_web_application_asset(
+                    name="Agregar Sitio WEB",
+                    public_url=jms_settings.public_url,
+                )
+                if res:
+                    logger.info("JumpServer Web Application ready: id=%s", res.get("id"))
+            except Exception as e:
+                logger.warning("Could not sync JumpServer Web Application asset: %s", e)
+        asyncio.create_task(sync_web_app())
 
 
 @app.get("/health")

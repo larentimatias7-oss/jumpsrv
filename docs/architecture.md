@@ -78,7 +78,22 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
 - **Restricción W3C Secure Context:** Para habilitar la API `navigator.clipboard` que permite copiar y pegar credenciales y comandos entre la estación de trabajo y la sesión remota en JumpServer Luna, los navegadores modernos exigen estrictamente una conexión segura **HTTPS** (o `localhost`). En conexiones HTTP no seguras, el navegador bloquea el acceso (`navigator.clipboard api not found`).
 - **Soporte de Conectividad `JMS_VERIFY_SSL`:** Al desplegar JumpServer en HTTPS con certificados autofirmados con SAN IP, el cliente HTTP de `kiosk-manager` soporta la bandera `JMS_VERIFY_SSL=false` (o montaje de CA bundle corporativo mediante `JMS_CA_BUNDLE`), evitando fallos por `SSLCertVerificationError` durante el aprovisionamiento y sincronización de activos.
 
-### G. Sincronización Dinámica de Categorías y Árbol de Nodos JumpServer (Herencia RBAC)
+### G. Autenticación Delegada (JumpServer SSO Pasivo) y Acceso Directo Web App
+- **Single Sign-On Pasivo por Sesión JumpServer:**
+  - `kiosk-manager` delega la autenticación directamente en el bastión JumpServer (`172.30.20.62` / `JMS_BASE_URL`).
+  - Cada petición HTTP es evaluada por la dependencia FastAPI `get_current_user` (`backend/app/auth/jms_auth.py`), la cual captura la cookie de sesión `jms_sessionid` (o header `Authorization`) y consulta en tiempo real el endpoint `GET /api/v1/users/profile/` en JumpServer.
+  - Si la sesión es válida (HTTP 200), extrae el perfil del operador (`id`, `username`, `name`, `email`, `roles`).
+  - Si no existe sesión o caducó (HTTP 401/403), deniega el acceso a los endpoints sensibles (`/api/kiosks`, `/api/categories`, `/api/settings`) retornando `401 Unauthorized`.
+- **Auth Guard Visual en Frontend (`App.vue`):**
+  - Al iniciar la aplicación, se consulta `GET /api/auth/me` con `credentials: 'include'`.
+  - En caso de sesión no detectada o expirada, se bloquea la vista de control y se despliega una tarjeta institucional con la estética Milicic/JumpServer informando el estado y proveyendo un botón de redirección inmediata al portal de login de JumpServer (`https://172.30.20.62/ui/#/login`).
+  - Si la sesión es válida, la barra superior muestra la insignia `👤 {user.name} ({user.username})` y el menú de usuario incluye la opción de cierre de sesión hacia `https://172.30.20.62/ui/#/logout`.
+- **Trazabilidad Forense:** El nombre de usuario autenticado se inyecta automáticamente en los comentarios de auditoría de los activos registrados en JumpServer: `Managed by Kiosk-Manager | Device: {device} | CreatedBy: {username}`.
+- **Registro Nativo de Aplicación Web ("Agregar Sitio WEB"):**
+  - Durante el arranque o sincronización inicial, `JumpServerClient.ensure_web_application_asset()` registra de forma idempotente la URL pública configurada (`KIOSK_MANAGER_PUBLIC_URL`, por defecto `http://172.30.20.62:8000`) en `/api/v1/applications/applications/`.
+  - Esto permite a los operadores acceder a Kiosk Manager con un clic directamente desde su espacio de trabajo en JumpServer (Lina/Luna) sin modificar el código fuente del bastión.
+
+### H. Sincronización Dinámica de Categorías y Árbol de Nodos JumpServer (Herencia RBAC)
 - **Mapeo Dinámico Categorías <-> Nodos (`/api/v1/assets/nodes/`):**
   - Cada categoría gestionada en `kiosk-manager` (ej. `SWITCHES ROSARIO`, `SERVERS INFRA`, `SERVERS BACKUP`) se sincroniza bidireccionalmente con el árbol de Nodos organizativos de JumpServer.
   - Al aprovisionar un quiosco, el backend resuelve o asegura el nodo homólogo en JumpServer (`ensure_node`) y envía el UUID del nodo en el payload del activo (`nodes: [node_uuid]`).

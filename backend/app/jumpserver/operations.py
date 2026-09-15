@@ -214,3 +214,10 @@ class JumpServerOperations:
 
     def delete_permission(self, perm_id: str) -> Any:
         return self.client.delete(f"/api/v1/perms/asset-permissions/{perm_id}/")
+
+    def ensure_web_application_asset(
+        self,
+        name: str = "Agregar Sitio WEB",
+        public_url: str | None = None,
+    ) -> dict[str, Any]:
+        return self.client.ensure_web_application_asset(name=name, public_url=public_url)

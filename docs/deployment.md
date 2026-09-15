@@ -229,3 +229,20 @@ El backend implementa de forma transparente:
 - Reintentos con retroceso exponencial de 1 a 4 segundos ante errores de transporte (`502`, `503`, `504`, caídas de red o reinicios de `jms_core`).
 - Reautenticación automática e invalidación de credenciales en caché si JumpServer responde `401 Unauthorized` o `403 Forbidden`, sin interrumpir las operaciones del usuario.
 
+### 5.4. Autenticación Delegada (SSO) y Aplicación Web en JumpServer
+Para integrar de forma nativa la experiencia del operador entre JumpServer y Kiosk Manager:
+1. **Delegación de Sesión por Cookie (`jms_sessionid`):**
+   - Cuando el operador navega a Kiosk Manager habiendo iniciado sesión en el bastión (`https://172.30.20.62`), el navegador propaga la cookie de sesión `jms_sessionid`.
+   - Kiosk Manager valida la identidad contra el bastión sin solicitar credenciales adicionales.
+   - Si no hay sesión activa, el Auth Guard visual presenta un botón directo hacia `https://172.30.20.62/ui/#/login`.
+2. **Acceso Directo desde JumpServer ("Agregar Sitio WEB"):**
+   - Configure en su archivo `.env`:
+     ```dotenv
+     # URL con la que los operadores acceden a Kiosk Manager
+     KIOSK_MANAGER_PUBLIC_URL=http://172.30.20.62:8000
+     # Registro automático en JumpServer al arrancar el backend
+     JMS_SYNC_WEB_APP_ENABLED=true
+     ```
+   - Al iniciar, Kiosk Manager da de alta automáticamente la aplicación web en JumpServer con el nombre `"Agregar Sitio WEB"`.
+   - Los operadores con permisos asignados verán el acceso directo en su consola de JumpServer para abrir Kiosk Manager en una pestaña nueva de forma transparente.
+

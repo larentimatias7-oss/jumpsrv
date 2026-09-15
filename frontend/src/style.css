@@ -333,3 +333,186 @@ a:hover {
   text-transform: uppercase;
 }
 
+/* ==============================================================================
+   JumpServer Delegated Auth Guard & Loading Styles (Milicic Official Palette)
+   ============================================================================== */
+
+.auth-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 80px);
+  gap: 16px;
+  color: var(--jms-text-secondary, #718096);
+  font-size: 14px;
+}
+
+.auth-loading-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid rgba(255, 106, 0, 0.2);
+  border-top-color: #FF6A00;
+  border-radius: 50%;
+  animation: jms-spin 0.8s linear infinite;
+}
+
+@keyframes jms-spin {
+  to { transform: rotate(360deg); }
+}
+
+.auth-guard-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 80px);
+  padding: 32px 16px;
+  background: radial-gradient(circle at 50% 25%, rgba(255, 106, 0, 0.05), transparent 70%);
+}
+
+.auth-guard-card {
+  max-width: 540px;
+  width: 100%;
+  background: var(--jms-card-bg, #ffffff);
+  border: 1px solid var(--jms-border-color, #e2e8f0);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(42, 52, 61, 0.14);
+  padding: 44px 36px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: authFadeIn 0.3s ease-out;
+}
+
+@keyframes authFadeIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-guard-icon-wrap {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: rgba(255, 106, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+
+.auth-guard-icon {
+  color: #FF6A00;
+}
+
+.auth-guard-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(42, 52, 61, 0.08);
+  color: #2A343D;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.dark .auth-guard-badge {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+.auth-guard-title {
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--jms-text-primary, #1a202c);
+  margin: 0 0 14px 0;
+  line-height: 1.35;
+}
+
+.auth-guard-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--jms-text-secondary, #4a5568);
+  margin: 0 0 30px 0;
+  max-width: 440px;
+}
+
+.auth-guard-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 360px;
+  margin-bottom: 28px;
+}
+
+.auth-guard-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #FF6A00;
+  color: #ffffff !important;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 13px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(255, 106, 0, 0.35);
+}
+
+.auth-guard-btn-primary:hover {
+  background: #e05d00;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 106, 0, 0.45);
+}
+
+.auth-guard-btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--jms-text-secondary, #4a5568);
+  border: 1px solid var(--jms-border-color, #cbd5e0);
+  font-weight: 500;
+  font-size: 13px;
+  padding: 11px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auth-guard-btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--jms-text-primary, #1a202c);
+}
+
+.auth-guard-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--jms-text-muted, #a0aec0);
+  border-top: 1px solid var(--jms-border-color, #edf2f7);
+  padding-top: 18px;
+  width: 100%;
+  justify-content: center;
+}
+
+.auth-guard-footer code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.dark .auth-guard-footer code {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FF6A00;
+}
+
