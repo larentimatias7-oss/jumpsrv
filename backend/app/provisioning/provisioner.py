@@ -106,7 +106,18 @@ def check_socket_ready_sync(
     return False
 
 
+def format_jms_asset_name(name: str) -> str:
+    """Format asset name for JumpServer by ensuring it carries the '-WEB' suffix."""
+    clean = (name or "").strip().upper()
+    if not clean:
+        return "GENERIC-WEB"
+    if not clean.endswith("-WEB"):
+        return f"{clean}-WEB"
+    return clean
+
+
 class KioskProvisioner:
+
     """Orchestrates safe, non-destructive provisioning between Docker Engine and JumpServer."""
 
     def __init__(
@@ -151,6 +162,7 @@ class KioskProvisioner:
                 out.append({
                     "id": k.id,
                     "name": k.name,
+                    "jms_asset_name": format_jms_asset_name(k.name),
                     "device_type": k.device_type,
                     "target_url": k.target_url,
                     "target_ip": k.target_ip,
@@ -274,14 +286,16 @@ class KioskProvisioner:
                     raise RuntimeError(err_msg)
 
             # 6. JumpServer: Register RDP Asset with Node UUID and Audit Metadata
+            jms_asset_name = format_jms_asset_name(clean_name)
             jms_asset = self.jms.create_rdp_asset(
-                name=clean_name,
+                name=jms_asset_name,
                 ip=self.host_ip,
                 port=port,
                 node_id=resolved_node_id,
                 platform_id=5,
                 category_name=cat_name,
                 created_by=created_by,
+                comment=f"Managed by Kiosk-Manager | Device: {clean_name} | CreatedBy: {created_by}",
             )
             jms_asset_id = jms_asset.get("id")
             created_resources.append(("jms_asset", jms_asset_id))
@@ -296,7 +310,7 @@ class KioskProvisioner:
             created_resources.append(("jms_account", jms_account_id))
 
             # 8. JumpServer: Assign permissions
-            perm_name = f"AUT-KIOSK-{clean_name}"
+            perm_name = f"AUT-KIOSK-{jms_asset_name}"
             jms_perm = self.jms.assign_permission(
                 name=perm_name,
                 asset_id=jms_asset_id,
@@ -319,6 +333,7 @@ class KioskProvisioner:
             return {
                 "id": kiosk_id,
                 "name": clean_name,
+                "jms_asset_name": jms_asset_name,
                 "status": "RUNNING",
                 "rdp_port": port,
                 "jms_asset_id": jms_asset_id,
@@ -419,7 +434,8 @@ class KioskProvisioner:
                     k.name = new_name
                     if k.jms_asset_id:
                         try:
-                            self.jms.client.put(f"/api/v1/assets/assets/{k.jms_asset_id}/", {"name": new_name})
+                            jms_new_name = format_jms_asset_name(new_name)
+                            self.jms.client.patch(f"/api/v1/assets/assets/{k.jms_asset_id}/", {"name": jms_new_name})
                         except Exception as e:
                             logger.warning(f"Could not rename JumpServer asset: {e}")
 
@@ -536,6 +552,7 @@ class KioskProvisioner:
             active_kiosks = session.query(KioskModel).all()
             known_asset_ids = {k.jms_asset_id for k in active_kiosks if k.jms_asset_id}
             known_names = {k.name.strip().upper() for k in active_kiosks if k.name}
+            known_jms_names = {format_jms_asset_name(k.name) for k in active_kiosks if k.name}
 
         managed_assets = []
         purged_assets = []
@@ -556,9 +573,29 @@ class KioskProvisioner:
             managed_assets.append(asset)
             asset_id = asset.get("id")
             asset_name = str(asset.get("name", "")).strip().upper()
+            base_name = asset_name[:-4] if asset_name.endswith("-WEB") else asset_name
+
+            # Auto-align existing active JumpServer asset names without -WEB suffix
+            if not asset_name.endswith("-WEB") and (asset_name in known_names or asset_id in known_asset_ids):
+                target_jms_name = f"{base_name}-WEB"
+                try:
+                    logger.info(
+                        "Auto-aligning JumpServer asset name to '%s' (ID: %s)",
+                        target_jms_name, asset_id,
+                    )
+                    self.jms.client.patch(f"/api/v1/assets/assets/{asset_id}/", {"name": target_jms_name})
+                    asset["name"] = target_jms_name
+                    asset_name = target_jms_name
+                except Exception as patch_err:
+                    logger.warning("Could not auto-align JumpServer asset name %s: %s", asset_id, patch_err)
 
             # If asset is not associated with any active local kiosk record, it's an orphan
-            if asset_id not in known_asset_ids and asset_name not in known_names:
+            if (
+                asset_id not in known_asset_ids
+                and asset_name not in known_names
+                and asset_name not in known_jms_names
+                and base_name not in known_names
+            ):
                 logger.info(
                     "[Garbage Collection] Found orphan JumpServer asset: %s (ID: %s). Purging...",
                     asset_name, asset_id,

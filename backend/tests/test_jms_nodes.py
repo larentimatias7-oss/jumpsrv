@@ -182,7 +182,7 @@ def test_provision_asset_injects_category_node_uuid(mock_jms_settings, in_memory
     endpoint, payload = asset_call[0][0], asset_call[0][1]
     assert "nodes" in payload
     assert payload["nodes"] == [target_node_uuid]
-    assert payload["name"] == "CORE-SW-01"
+    assert payload["name"] == "CORE-SW-01-WEB"
     assert payload["address"] == "192.168.1.50"
     assert payload["protocols"] == [{"name": "rdp", "port": result["rdp_port"]}]
 
@@ -367,3 +367,71 @@ def test_category_api_routes(mock_jms_settings, in_memory_db):
     resp_del = client.delete(f"/api/categories/{cat_id}", auth=auth)
     assert resp_del.status_code == 200
     assert resp_del.json()["status"] == "deleted"
+
+
+def test_format_jms_asset_name_suffix():
+    from app.provisioning.provisioner import format_jms_asset_name
+    assert format_jms_asset_name("ZABBIX") == "ZABBIX-WEB"
+    assert format_jms_asset_name("SWSRCORE01") == "SWSRCORE01-WEB"
+    assert format_jms_asset_name("ZABBIX-WEB") == "ZABBIX-WEB"
+    assert format_jms_asset_name("zabbix") == "ZABBIX-WEB"
+    assert format_jms_asset_name("  core-switch-01  ") == "CORE-SWITCH-01-WEB"
+    assert format_jms_asset_name("") == "GENERIC-WEB"
+
+
+def test_reconcile_auto_aligns_web_suffix_without_purging(in_memory_db):
+    from app.provisioning.provisioner import KioskProvisioner
+    from app.models.database import KioskModel
+
+    # Mock JumpServer Client
+    mock_client = Mock(spec=JumpServerClient)
+    # Existing assets in JumpServer without -WEB suffix
+    mock_client.get.return_value = {
+        "results": [
+            {
+                "id": "jms-zabbix-1",
+                "name": "ZABBIX",
+                "comment": "Managed by Kiosk-Manager | Device: ZABBIX",
+                "tags": ["kiosk-manager", "ephemeral"],
+            }
+        ]
+    }
+    mock_client.patch.return_value = {"id": "jms-zabbix-1", "name": "ZABBIX-WEB"}
+
+    mock_docker = Mock()
+    ops = JumpServerOperations(mock_client)
+    provisioner = KioskProvisioner(
+        db_session_factory=in_memory_db,
+        docker_runtime=mock_docker,
+        jms_ops=ops,
+    )
+
+    # Insert active local kiosk named ZABBIX
+    with in_memory_db() as session:
+        k = KioskModel(
+            id="local-kiosk-1",
+            name="ZABBIX",
+            device_type="web",
+            target_url="http://10.0.0.5",
+            target_ip="10.0.0.5",
+            rdp_port=33892,
+            rdp_username="kiosk_zabbix",
+            container_name="kiosk-zabbix",
+            volume_name="rdp_zabbix",
+            jms_asset_id="jms-zabbix-1",
+            status="RUNNING",
+        )
+        session.add(k)
+        session.commit()
+
+    reconcile_res = provisioner.reconcile_with_jumpserver()
+
+    # Verify asset was auto-aligned with patch to ZABBIX-WEB
+    mock_client.patch.assert_called_once_with(
+        "/api/v1/assets/assets/jms-zabbix-1/",
+        {"name": "ZABBIX-WEB"},
+    )
+    # Verify it was NOT purged
+    assert reconcile_res["purged_count"] == 0
+    mock_client.delete.assert_not_called()
+

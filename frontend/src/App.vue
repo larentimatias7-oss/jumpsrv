@@ -1484,6 +1484,9 @@ onUnmounted(() => {
                       </a>
                       <div class="asset-sub">
                         <span class="rdp-user">{{ k.rdp_username }}</span>
+                        <span class="asset-jms-tag" :title="'Activo RDP Web en JumpServer: ' + (k.jms_asset_name || (k.name.endsWith('-WEB') ? k.name : k.name + '-WEB'))">
+                          JMS: {{ k.jms_asset_name || (k.name.endsWith('-WEB') ? k.name : k.name + '-WEB') }}
+                        </span>
                         <span v-if="k.jms_asset_id" class="asset-id-tag">ID: {{ k.jms_asset_id.substring(0, 8) }}</span>
                       </div>
                     </div>
@@ -1674,8 +1677,9 @@ onUnmounted(() => {
 
         <form @submit.prevent="createKiosk" class="modal-body-form">
           <div class="form-item">
-            <label class="form-label required">Nombre del Activo (JumpServer Asset)</label>
-            <input v-model="form.name" placeholder="Ej: ROUTER-MIKROTIK o ZABBIX-LOCAL" required />
+            <label class="form-label required">Nombre del Dispositivo / Activo</label>
+            <input v-model="form.name" placeholder="Ej: ROUTER-MIKROTIK o ZABBIX" required />
+            <span class="field-hint">En JumpServer se registrará automáticamente como <strong>{{ form.name ? (form.name.trim().toUpperCase().endsWith('-WEB') ? form.name.trim().toUpperCase() : form.name.trim().toUpperCase() + '-WEB') : 'DISPOSITIVO-WEB' }}</strong> para identificar la consola Web RDP.</span>
           </div>
 
           <div class="form-row">
@@ -2812,6 +2816,17 @@ onUnmounted(() => {
   color: var(--jms-text-secondary);
   padding: 1px 5px;
   border-radius: 3px;
+}
+
+.asset-jms-tag {
+  background: rgba(255, 106, 0, 0.12);
+  color: var(--milicic-orange);
+  border: 1px solid rgba(255, 106, 0, 0.25);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.3px;
 }
 
 /* Platform Cell */
