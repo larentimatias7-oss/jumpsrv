@@ -733,7 +733,7 @@
 
         <h3>Flujo de Conexión y Topología de Componentes</h3>
         <p>
-          El sistema distribuye sus responsabilidades entre el plano de control (API FastAPI en <code>host network</code>), la interfaz gráfica (Nginx en puerto <code>8080</code>) y el Dispatcher TCP que monitorea el rango de puertos <code>33891 - 33920</code>:
+          El sistema distribuye sus responsabilidades entre el plano de control (API FastAPI en <code>host network</code>), la interfaz gráfica (Nginx en puerto <code>8080</code>) y el Dispatcher TCP que monitorea el rango de puertos <code>33891 - 34090</code>:
         </p>
 
         <div class="code-wrapper">
@@ -746,7 +746,7 @@
        ▼
 [ JUMPSERVER v4.10.x CE ]
   ├─ jms_core (API REST HMAC-SHA256) ──► Kiosk Manager Backend (:8000 / host)
-  └─ jms_lion (Guacamole RDP Proxy)   ──► RDP Dispatcher Pool (:33891 - :33920 / host)
+  └─ jms_lion (Guacamole RDP Proxy)   ──► RDP Dispatcher Pool (:33891 - :34090 / host)
                                                 │ (Detección RDP-SYN / Docker Socket)
                                                 ▼
                                       [ pam-web-kiosk (JIT Container) ]
@@ -822,7 +822,7 @@
                 <td>API REST interna (reverso-proxyficada por Nginx :8080)</td>
               </tr>
               <tr>
-                <td><span class="port-badge">33891 - 33920</span></td>
+                <td><span class="port-badge">33891 - 34090</span></td>
                 <td>TCP</td>
                 <td>Host (jms_lion)</td>
                 <td>RDP Dispatcher Pool</td>
@@ -857,8 +857,8 @@ sudo ufw allow 2222/tcp comment 'JumpServer Koko CLI'
 # Permitir acceso al Dashboard del Kiosk Manager (solo administradores)
 sudo ufw allow 8080/tcp comment 'Kiosk Manager Web Dashboard'
 
-# Los puertos 33891:33920 comunican jms_lion con el dispatcher en localhost o LAN
-sudo ufw allow 33891:33920/tcp comment 'Kiosk Dispatcher RDP Relay Pool'
+# Los puertos 33891:34090 comunican jms_lion con el dispatcher en localhost o LAN
+sudo ufw allow 33891:34090/tcp comment 'Kiosk Dispatcher RDP Relay Pool'
 
 # Habilitar firewall
 sudo ufw enable
