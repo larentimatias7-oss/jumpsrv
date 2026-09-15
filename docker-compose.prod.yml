@@ -14,7 +14,7 @@ services:
       - JMS_KEY_ID=${JMS_KEY_ID:-}
       - JMS_SECRET_KEY=${JMS_SECRET_KEY:-}
       - JMS_SECRET_FILE=${JMS_SECRET_FILE:-/app/secrets/jms_secret.key}
-      - JMS_VERIFY_SSL=${JMS_VERIFY_SSL:-true}
+      - JMS_VERIFY_SSL=${JMS_VERIFY_SSL:-false}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - kiosk_db_data:/app/data

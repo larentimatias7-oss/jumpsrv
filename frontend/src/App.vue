@@ -27,10 +27,10 @@ const urlTestResults = ref({})
 const editUrlTesting = ref(false)
 const editUrlTestResult = ref(null)
 
-// Auth Credentials
+// Auth Credentials (only if explicitly configured in settings / standalone mode)
 const authCredentials = ref({
-  user: localStorage.getItem('kiosk_user') || 'admin',
-  pass: localStorage.getItem('kiosk_pass') || 'admin'
+  user: localStorage.getItem('kiosk_user') || '',
+  pass: localStorage.getItem('kiosk_pass') || ''
 })
 
 // JumpServer Delegated Auth State
@@ -45,7 +45,14 @@ const getHeaders = () => {
   const headers = {
     'Content-Type': 'application/json'
   }
-  if (authCredentials.value.user && authCredentials.value.pass) {
+  const jmsSession = localStorage.getItem('jms_sessionid')
+  if (jmsSession) {
+    headers['X-JMS-SESSIONID'] = jmsSession
+  }
+  const jmsToken = localStorage.getItem('jms_token')
+  if (jmsToken) {
+    headers['Authorization'] = `Bearer ${jmsToken}`
+  } else if (authCredentials.value.user && authCredentials.value.pass) {
     const token = btoa(`${authCredentials.value.user}:${authCredentials.value.pass}`)
     headers['Authorization'] = `Basic ${token}`
   }
@@ -764,8 +771,33 @@ const onSystemThemeChange = (e) => {
   }
 }
 
+const handleLogout = () => {
+  localStorage.removeItem('jms_sessionid')
+  localStorage.removeItem('jms_token')
+  localStorage.removeItem('kiosk_user')
+  localStorage.removeItem('kiosk_pass')
+  currentUser.value = null
+  authError.value = true
+}
+
 onMounted(async () => {
   initTheme()
+
+  // Extract sessionid or token from JumpServer redirect URL parameters if present
+  try {
+    const urlParams = new URLSearchParams(window.location.search)
+    const qSession = urlParams.get('jms_sessionid') || urlParams.get('sessionid')
+    if (qSession) {
+      localStorage.setItem('jms_sessionid', qSession)
+    }
+    const qToken = urlParams.get('token')
+    if (qToken) {
+      localStorage.setItem('jms_token', qToken)
+    }
+  } catch (e) {
+    console.warn('Could not parse URL query parameters:', e)
+  }
+
   const authenticated = await checkAuthentication()
   if (authenticated) {
     fetchKiosks()
@@ -928,7 +960,7 @@ onUnmounted(() => {
               🚀 Manual de Despliegue
             </a>
             <div class="dropdown-divider"></div>
-            <a :href="jmsLogoutUrl" class="dropdown-item danger">
+            <a :href="jmsLogoutUrl" class="dropdown-item danger" @click="handleLogout">
               🚪 Cerrar Sesión JumpServer
             </a>
           </div>

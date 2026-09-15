@@ -19,7 +19,7 @@ class JumpServerSettings(BaseSettings):
     base_url: str = Field(
         default_factory=lambda: os.getenv(
             "JMS_BASE_URL",
-            os.getenv("JMS_URL", os.getenv("JUMPSERVER_BASE_URL", os.getenv("JUMPSERVER_URL", "http://127.0.0.1:80")))
+            os.getenv("JMS_URL", os.getenv("JUMPSERVER_BASE_URL", os.getenv("JUMPSERVER_URL", "https://127.0.0.1:443")))
         ),
         description="Base URL of JumpServer",
     )
@@ -46,8 +46,8 @@ class JumpServerSettings(BaseSettings):
         description="Default org UUID in JumpServer 4.x",
     )
     verify_ssl: bool = Field(
-        default_factory=lambda: os.getenv("JMS_VERIFY_SSL", os.getenv("JUMPSERVER_VERIFY_SSL", "true")).strip().lower() in ("1", "true", "yes", "on", "t"),
-        description="Verify SSL certificate",
+        default_factory=lambda: os.getenv("JMS_VERIFY_SSL", os.getenv("JUMPSERVER_VERIFY_SSL", "false")).strip().lower() in ("1", "true", "yes", "on", "t"),
+        description="Verify SSL certificate (defaults to False for self-signed certificates in local networks)",
     )
     ca_bundle: Path | None = Field(default=None, description="Custom CA bundle")
     timeout: float = Field(default=30.0, description="HTTP timeout seconds")
@@ -77,11 +77,24 @@ class JumpServerSettings(BaseSettings):
         description="JumpServer logout URL",
     )
 
+    @field_validator("base_url", mode="before")
+    @classmethod
+    def _validate_base_url(cls, v: Any) -> str:
+        if not v:
+            v = os.getenv(
+                "JMS_BASE_URL",
+                os.getenv("JMS_URL", os.getenv("JUMPSERVER_BASE_URL", os.getenv("JUMPSERVER_URL", "https://127.0.0.1:443")))
+            )
+        v = str(v).strip()
+        if not v.startswith("http://") and not v.startswith("https://"):
+            v = f"https://{v}"
+        return v
+
     @field_validator("verify_ssl", mode="before")
     @classmethod
     def _validate_verify_ssl(cls, v: Any) -> bool:
         if v is None:
-            raw = os.getenv("JMS_VERIFY_SSL", os.getenv("JUMPSERVER_VERIFY_SSL", "true"))
+            raw = os.getenv("JMS_VERIFY_SSL", os.getenv("JUMPSERVER_VERIFY_SSL", "false"))
             v = raw
         if isinstance(v, bool):
             return v

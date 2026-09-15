@@ -42,8 +42,33 @@ def verify_jumpserver_session(
     """
     cfg = settings or get_jms_settings()
 
-    session_id = request.cookies.get("jms_sessionid")
-    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    session_id = None
+    if hasattr(request, "cookies") and hasattr(request.cookies, "get"):
+        session_id = request.cookies.get("jms_sessionid")
+    if not session_id and hasattr(request, "headers") and hasattr(request.headers, "get"):
+        session_id = request.headers.get("x-jms-sessionid") or request.headers.get("X-JMS-SESSIONID")
+    if not session_id:
+        qp = getattr(request, "query_params", None)
+        if qp and hasattr(qp, "get"):
+            try:
+                val = qp.get("jms_sessionid") or qp.get("sessionid")
+                if isinstance(val, str):
+                    session_id = val
+            except Exception:
+                pass
+
+    auth_header = None
+    if hasattr(request, "headers") and hasattr(request.headers, "get"):
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not auth_header:
+        qp = getattr(request, "query_params", None)
+        if qp and hasattr(qp, "get"):
+            try:
+                tok = qp.get("token")
+                if isinstance(tok, str):
+                    auth_header = f"Bearer {tok}"
+            except Exception:
+                pass
 
     from urllib.parse import urlparse
     target_host = urlparse(cfg.base_url).hostname

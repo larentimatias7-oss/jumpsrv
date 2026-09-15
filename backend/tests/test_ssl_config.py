@@ -5,9 +5,9 @@ from app.jumpserver.client import JumpServerClient
 
 
 def test_verify_ssl_default():
-    """Verify that SSL verification defaults to True for secure operations."""
+    """Verify that SSL verification defaults to False for on-premise deployments."""
     cfg = JumpServerConfig()
-    assert cfg.verify_ssl is True
+    assert cfg.verify_ssl is False
 
 
 @pytest.mark.parametrize("val,expected", [
