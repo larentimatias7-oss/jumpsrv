@@ -474,3 +474,23 @@ def test_reconcile_containers_api_endpoint(auth_headers):
         mock_gc.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_container_gc_loop_runs_and_cancels_cleanly(monkeypatch):
+    from app.main import container_gc_loop
+    monkeypatch.setenv("KIOSK_CONTAINER_GC_INTERVAL_SECONDS", "0.01")
+
+    with patch("app.main.dispatcher.reconcile_running_containers") as mock_reconcile:
+        task = asyncio.create_task(container_gc_loop())
+        # Let it run one iteration
+        await asyncio.sleep(0.03)
+        assert mock_reconcile.call_count >= 1
+
+        # Cancel task and verify it exits cleanly without unhandled exception
+        task.cancel()
+        await task
+        assert task.done()
+        assert task.exception() is None
+
+
+
+

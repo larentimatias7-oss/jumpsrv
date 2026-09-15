@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from fastapi import FastAPI
@@ -35,7 +36,6 @@ app.include_router(api_router, prefix="/api")
 async def auto_reconcile_loop():
     """Periodic background task that purges orphan JumpServer assets."""
     from .api.routes import provisioner
-    import asyncio
     interval_hours = float(os.getenv("JMS_RECONCILE_INTERVAL_HOURS", "12"))
     if interval_hours <= 0:
         logger.info("Auto-reconciliation background task is disabled (interval <= 0)")
@@ -49,6 +49,7 @@ async def auto_reconcile_loop():
             res = provisioner.reconcile_with_jumpserver()
             logger.info("Auto-reconciliation complete: %s orphans purged", res.get("purged_count", 0))
         except asyncio.CancelledError:
+            logger.info("Auto-reconciliation loop cancelled, shutting down...")
             break
         except Exception as e:
             logger.warning("Error in auto-reconciliation background task: %s", e)
@@ -66,6 +67,7 @@ async def container_gc_loop():
             await asyncio.sleep(interval)
             dispatcher.reconcile_running_containers()
         except asyncio.CancelledError:
+            logger.info("Container GC loop cancelled, shutting down...")
             break
         except Exception as e:
             logger.warning("Error in container GC loop: %s", e)
@@ -73,7 +75,6 @@ async def container_gc_loop():
 
 @app.on_event("startup")
 async def startup_event():
-    import asyncio
     from .provisioning.provisioner import detect_host_ip
     from .config import get_lifecycle_settings
     logger.info("Initializing database and checking schema migrations...")
