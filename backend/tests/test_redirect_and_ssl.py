@@ -158,3 +158,51 @@ def test_handle_response_safely_catches_invalid_json():
 
     res = client._handle_response(raw_resp, "GET", "/api/v1/test")
     assert res == {}
+
+
+def test_ensure_web_application_handles_404_not_found(caplog):
+    """
+    Verify that if /api/v1/applications/applications/ returns 404 Not Found,
+    ensure_web_application_asset logs cleanly at INFO level and skips without errors or retries.
+    """
+    import logging
+    cfg = JumpServerConfig(
+        base_url="https://172.30.20.62",
+        key_id="dummy-key-id",
+        secret_value="dummy-secret-value",
+    )
+    client = JumpServerClient(settings=cfg)
+
+    def mock_request(method, path, **kwargs):
+        resp = httpx.Response(404, request=httpx.Request(method, f"https://172.30.20.62{path}"))
+        return client._handle_response(resp, method, path)
+
+    with patch.object(client, "_request", side_effect=mock_request):
+        with caplog.at_level(logging.INFO):
+            result = client.ensure_web_application_asset("Agregar Sitio WEB", "http://172.30.20.62:8000")
+            assert result == {}
+            assert any(
+                "JumpServer applications endpoint not supported on this edition, skipping automated web app registration"
+                in record.message
+                for record in caplog.records
+            )
+
+
+def test_ensure_web_application_respects_sync_disabled():
+    """
+    Verify that if JMS_SYNC_WEB_APP_ENABLED is false, ensure_web_application_asset
+    exits immediately without making any network requests.
+    """
+    cfg = JumpServerConfig(
+        base_url="https://172.30.20.62",
+        key_id="dummy-key-id",
+        secret_value="dummy-secret-value",
+        sync_web_app_enabled=False,
+    )
+    client = JumpServerClient(settings=cfg)
+
+    with patch.object(client, "_request") as mock_req:
+        result = client.ensure_web_application_asset("Agregar Sitio WEB", "http://172.30.20.62:8000")
+        assert result == {}
+        mock_req.assert_not_called()
+

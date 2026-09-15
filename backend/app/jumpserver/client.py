@@ -235,6 +235,8 @@ class JumpServerClient:
             raise JumpServerValidationError(
                 f"{method} {path}: 400 Bad Request: {resp.text[:500]}"
             )
+        if resp.status_code == 404:
+            raise JumpServerError(f"{method} {path}: 404 Not Found")
         if resp.status_code >= 400:
             raise JumpServerError(
                 f"{method} {path}: {resp.status_code} Error: {resp.text[:500]}"
@@ -408,7 +410,13 @@ class JumpServerClient:
                     return [item for item in results if isinstance(item, dict)]
                 if res.get("id") or res.get("name"):
                     return [res]
+        except JumpServerError as jse:
+            if "404" in str(jse) or "Not Found" in str(jse):
+                raise
+            logger.warning("Failed to list web applications from JumpServer: %s", jse)
         except Exception as e:
+            if "404" in str(e) or "Not Found" in str(e):
+                raise
             logger.warning("Failed to list web applications from JumpServer: %s", e)
         return []
 
@@ -452,8 +460,13 @@ class JumpServerClient:
         """
         Idempotently ensure that the Kiosk Manager web application exists in JumpServer.
         If already present, returns the existing record. If missing, registers it.
-        Validates 200/201 responses and gracefully handles empty or non-dict payloads.
+        If the JumpServer edition does not support the /api/v1/applications/applications/
+        endpoint (404 Not Found), logs cleanly at INFO level and skips without retries.
         """
+        if not getattr(self.config, "sync_web_app_enabled", True):
+            logger.debug("JumpServer web application sync disabled (JMS_SYNC_WEB_APP_ENABLED=false)")
+            return {}
+
         url = public_url or getattr(self.config, "public_url", "http://172.30.20.62:8000")
         try:
             existing = self.get_web_application_by_name(name)
@@ -472,6 +485,15 @@ class JumpServerClient:
             else:
                 logger.warning("JumpServer Web Application '%s' registration returned unexpected response type %s", name, type(created))
                 return {}
+        except JumpServerError as jse:
+            if "404" in str(jse) or "Not Found" in str(jse):
+                logger.info("JumpServer applications endpoint not supported on this edition, skipping automated web app registration")
+                return {}
+            logger.warning("Failed to ensure Web Application '%s' in JumpServer: %s", name, jse)
+            return {}
         except Exception as e:
+            if "404" in str(e) or "Not Found" in str(e):
+                logger.info("JumpServer applications endpoint not supported on this edition, skipping automated web app registration")
+                return {}
             logger.warning("Failed to ensure Web Application '%s' in JumpServer: %s", name, e)
             return {}
