@@ -226,3 +226,34 @@ class DockerRuntime:
         except Exception:
             return False
 
+    def list_managed_containers(self, all: bool = True) -> list[Any]:
+        """List all containers carrying the managed-by label."""
+        try:
+            return self.client.containers.list(
+                all=all,
+                filters={"label": f"{LABEL_MANAGED_BY}={LABEL_VALUE}"},
+            )
+        except Exception as e:
+            logger.warning(f"Error listing managed containers: {e}")
+            return []
+
+    def remove_orphan_container(self, container_name_or_id: str) -> bool:
+        """Safely stops and removes an orphan container if it carries managed-by label."""
+        try:
+            c = self.client.containers.get(container_name_or_id)
+            if not self.is_managed_by_us(c.labels):
+                logger.warning(
+                    f"Refusing to remove container {container_name_or_id}: missing managed-by label"
+                )
+                return False
+            if c.status == "running":
+                c.stop(timeout=5)
+            c.remove(force=True)
+            logger.info(f"Removed orphan managed container: {container_name_or_id}")
+            return True
+        except NotFound:
+            return True
+        except Exception as e:
+            logger.error(f"Failed to remove orphan container {container_name_or_id}: {e}")
+            return False
+

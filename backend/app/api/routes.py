@@ -161,6 +161,21 @@ def reconcile_jumpserver_assets():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
+@router.post("/kiosks/reconcile-containers")
+@router.post("/containers/reconcile")
+def reconcile_containers(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Garbage collection endpoint to stop abandoned running containers with 0 connections
+    and remove orphan Docker containers not registered in the database.
+    """
+    try:
+        from ..main import dispatcher
+        return dispatcher.reconcile_running_containers()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+
 # --- Category & JumpServer Node Management ---
 
 @router.get("/categories", response_model=List[Dict[str, Any]])

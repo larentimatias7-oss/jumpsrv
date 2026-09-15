@@ -54,6 +54,23 @@ async def auto_reconcile_loop():
             logger.warning("Error in auto-reconciliation background task: %s", e)
 
 
+async def container_gc_loop():
+    """Periodic background watchdog to clean up orphan and abandoned running kiosk containers."""
+    interval = float(os.getenv("KIOSK_CONTAINER_GC_INTERVAL_SECONDS", "60"))
+    if interval <= 0:
+        logger.info("Container GC background task is disabled (interval <= 0)")
+        return
+    logger.info("Starting container GC watchdog loop (interval: %.0fs)", interval)
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            dispatcher.reconcile_running_containers()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.warning("Error in container GC loop: %s", e)
+
+
 @app.on_event("startup")
 async def startup_event():
     import asyncio
@@ -79,8 +96,15 @@ async def startup_event():
             if k.rdp_port:
                 await dispatcher.start_listening_for_kiosk(k.id, host_ip, k.rdp_port)
 
-    # Launch periodic orphan garbage collection
+    # Reconcile running containers on startup (free RAM from ungraceful host/backend restarts)
+    try:
+        dispatcher.reconcile_running_containers()
+    except Exception as e:
+        logger.warning("Initial container reconciliation encountered error: %s", e)
+
+    # Launch periodic orphan garbage collections
     asyncio.create_task(auto_reconcile_loop())
+    asyncio.create_task(container_gc_loop())
 
     # Ensure JumpServer Web Application asset ("Agregar Sitio WEB") is registered
     from .jumpserver.config import get_jms_settings

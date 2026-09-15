@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import time
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import pytest
 from fastapi.testclient import TestClient
 
@@ -382,4 +382,95 @@ async def test_dispatcher_concurrency_limit_enforcement(in_memory_db):
     mock_writer.close.assert_called_once()
     mock_docker.ensure_container_running.assert_not_called()
     assert dispatcher.active_connections.get(33895, 0) == 0
+
+
+def test_reconcile_running_containers_stops_idle_and_removes_orphans(in_memory_db):
+    mock_docker = Mock(spec=DockerRuntime)
+
+    # 1. Active kiosk in DB with running container but 0 active connections
+    c1 = Mock()
+    c1.name = "kiosk-idle-device"
+    c1.status = "running"
+    c1.labels = {"managed-by": "jumpserver-kiosk-manager", "kiosk-id": "kiosk-1"}
+
+    # 2. Active kiosk in DB with running container and 1 active connection
+    c2 = Mock()
+    c2.name = "kiosk-active-session"
+    c2.status = "running"
+    c2.labels = {"managed-by": "jumpserver-kiosk-manager", "kiosk-id": "kiosk-2"}
+
+    # 3. Orphan container NOT in DB
+    c3 = Mock()
+    c3.name = "kiosk-orphan-device"
+    c3.status = "exited"
+    c3.labels = {"managed-by": "jumpserver-kiosk-manager", "kiosk-id": "unknown-id"}
+
+    mock_docker.list_managed_containers.return_value = [c1, c2, c3]
+
+    dispatcher = KioskDispatcher(
+        db_factory=in_memory_db,
+        docker_runtime=mock_docker,
+    )
+    # Simulate connection states
+    dispatcher.active_connections[33891] = 0  # kiosk-1 has 0 connections
+    dispatcher.active_connections[33892] = 1  # kiosk-2 has 1 connection
+
+    with in_memory_db() as session:
+        k1 = KioskModel(
+            id="kiosk-1",
+            name="IDLE-DEVICE",
+            device_type="generic",
+            target_url="http://10.0.0.1",
+            target_ip="10.0.0.1",
+            target_port=80,
+            rdp_port=33891,
+            rdp_username="kiosk",
+            container_name="kiosk-idle-device",
+            volume_name="rdp_idle_device",
+            status="RUNNING",
+        )
+        k2 = KioskModel(
+            id="kiosk-2",
+            name="ACTIVE-DEVICE",
+            device_type="generic",
+            target_url="http://10.0.0.2",
+            target_ip="10.0.0.2",
+            target_port=80,
+            rdp_port=33892,
+            rdp_username="kiosk",
+            container_name="kiosk-active-session",
+            volume_name="rdp_active_device",
+            status="RUNNING",
+        )
+        session.add_all([k1, k2])
+        session.commit()
+
+    res = dispatcher.reconcile_running_containers()
+
+    assert res["stopped"] == 1
+    assert res["removed"] == 1
+
+    # kiosk-idle-device should be stopped and marked IDLE in DB
+    mock_docker.stop_container.assert_called_once_with("kiosk-idle-device")
+    mock_docker.remove_orphan_container.assert_called_once_with("kiosk-orphan-device")
+
+    with in_memory_db() as session:
+        updated_k1 = session.get(KioskModel, "kiosk-1")
+        assert updated_k1.status == "IDLE"
+        updated_k2 = session.get(KioskModel, "kiosk-2")
+        assert updated_k2.status == "RUNNING"
+
+
+def test_reconcile_containers_api_endpoint(auth_headers):
+    client = TestClient(app)
+    fake_result = {"stopped": 2, "removed": 1}
+
+    with patch("app.main.dispatcher.reconcile_running_containers", return_value=fake_result) as mock_gc:
+        res = client.post("/api/kiosks/reconcile-containers", headers=auth_headers)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["stopped"] == 2
+        assert data["removed"] == 1
+        mock_gc.assert_called_once()
+
 

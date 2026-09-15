@@ -254,3 +254,44 @@ def test_create_kiosk_injects_operator_in_forensic_metadata():
                 # Verify created_by was passed as the operator username
                 _, kwargs = mock_prov.call_args
                 assert kwargs.get("created_by") == "matias.larenti"
+
+
+def test_effective_base_url_auto_upgrades_standard_http():
+    from app.auth.jms_auth import get_effective_base_url, _effective_base_urls
+    _effective_base_urls.clear()
+
+    cfg_prod = JumpServerSettings(
+        base_url="http://172.30.20.62",
+        key_id="test-key",
+        secret_value="test-secret",
+    )
+    # Production IP without mock prefix should be upgraded to https
+    effective = get_effective_base_url(cfg_prod)
+    assert effective == "https://172.30.20.62"
+
+
+def test_effective_base_url_preserves_mock_and_caches_redirect():
+    from app.auth.jms_auth import get_effective_base_url, _cache_redirect_url, _effective_base_urls
+    _effective_base_urls.clear()
+
+    cfg_mock = JumpServerSettings(
+        base_url="http://mock-jms:80",
+        key_id="test-key",
+        secret_value="test-secret",
+    )
+    # Mock stays http
+    effective = get_effective_base_url(cfg_mock)
+    assert effective == "http://mock-jms:80"
+
+    # Simulate receiving a 307 redirect to https
+    mock_resp = httpx.Response(
+        200,
+        request=httpx.Request("GET", "https://mock-jms/api/v1/users/profile/"),
+        history=[httpx.Response(307, headers={"Location": "https://mock-jms/api/v1/users/profile/"})],
+    )
+    _cache_redirect_url("mock-jms", mock_resp)
+
+    # Subsequent call should use the cached https URL
+    effective_after = get_effective_base_url(cfg_mock)
+    assert effective_after == "https://mock-jms"
+

@@ -76,6 +76,10 @@ class JumpServerSettings(BaseSettings):
         default_factory=lambda: os.getenv("JMS_LOGOUT_URL", "https://172.30.20.62/ui/#/logout"),
         description="JumpServer logout URL",
     )
+    auto_upgrade_https: bool = Field(
+        default_factory=lambda: os.getenv("JMS_AUTO_UPGRADE_HTTPS", "true").strip().lower() in ("1", "true", "yes", "on", "t"),
+        description="Automatically use HTTPS when JumpServer redirects or when connecting to standard HTTP port",
+    )
 
     @field_validator("base_url", mode="before")
     @classmethod

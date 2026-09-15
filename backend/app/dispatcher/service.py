@@ -149,6 +149,79 @@ class KioskDispatcher:
         task = asyncio.create_task(grace_shutdown())
         self.idle_tasks[port] = task
 
+    def reconcile_running_containers(self) -> Dict[str, Any]:
+        """
+        Periodically garbage-collects orphan, abandoned, or idle kiosk containers:
+        1. Queries all kiosks currently registered in the database.
+        2. Inspects all Docker containers carrying label 'managed-by=jumpserver-kiosk-manager'.
+        3. If a managed container does not correspond to any registered kiosk in DB -> remove it.
+        4. If a managed container is 'running', but:
+           - The dispatcher has 0 active connections for this kiosk's port, AND
+           - There is no active disconnect grace timer (or grace expired)
+           -> Stop container to release 768MB RAM and update status to IDLE.
+        """
+        stopped_count = 0
+        removed_orphan_count = 0
+
+        try:
+            managed_containers = self.docker.list_managed_containers(all=True)
+        except Exception as e:
+            logger.error(f"Failed to list managed containers for reconciliation: {e}")
+            return {"stopped": 0, "removed": 0, "error": str(e)}
+
+        with self.db_factory() as session:
+            kiosks = session.query(KioskModel).all()
+            known_by_container = {k.container_name: k for k in kiosks if k.container_name}
+            known_by_id = {k.id: k for k in kiosks if k.id}
+
+        for c in managed_containers:
+            try:
+                c_name = getattr(c, "name", "")
+                c_status = getattr(c, "status", "")
+                labels = getattr(c, "labels", {}) or {}
+                kiosk_id = labels.get("kiosk-id")
+
+                matched_kiosk = known_by_container.get(c_name) or known_by_id.get(kiosk_id)
+
+                # 1. Orphan container without DB record
+                if not matched_kiosk:
+                    logger.warning(
+                        f"Found orphan kiosk container without DB record: {c_name} (status={c_status}). Cleaning up..."
+                    )
+                    self.docker.remove_orphan_container(c_name)
+                    removed_orphan_count += 1
+                    continue
+
+                # 2. Running container with 0 connections and no grace period
+                port = matched_kiosk.rdp_port
+                if c_status == "running":
+                    active_conn = self.active_connections.get(port, 0) if port else 0
+                    is_in_grace = (
+                        port in self.idle_tasks and not self.idle_tasks[port].done()
+                        if port
+                        else False
+                    )
+
+                    if active_conn == 0 and not is_in_grace:
+                        logger.info(
+                            f"Container GC: container {c_name} on port {port} is running with 0 connections. "
+                            f"Stopping to free 768MB RAM and setting status IDLE..."
+                        )
+                        self._stop_and_set_idle(
+                            matched_kiosk.id,
+                            c_name,
+                            port or 0,
+                            reason="orphan_running_reconciliation",
+                        )
+                        stopped_count += 1
+            except Exception as item_err:
+                logger.warning(f"Error inspecting managed container for GC: {item_err}")
+
+        return {
+            "stopped": stopped_count,
+            "removed": removed_orphan_count,
+        }
+
     async def start_listening_for_kiosk(self, kiosk_id: str, host_ip: str, port: int):
         """Starts an asyncio TCP server for the given kiosk port."""
         if port in self.servers:
