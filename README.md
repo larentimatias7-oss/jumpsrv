@@ -34,8 +34,10 @@ Permite acceder a consolas web de infraestructura crítica (Zabbix, switches, ro
 - **Respaldos Automatizados SQLite WAL (`scripts/backup_database.sh`):**
   - Copias en caliente online consistentes sin detener servicios mediante `.backup`.
   - Rotación automatizada con retención de 7 días y verificación de integridad (`PRAGMA integrity_check`).
-- **Dashboard Web Corporativo (`:8080`):**
+- **Dashboard Web Corporativo Seguro (`:8080` / `:8443`):**
   - Frontend moderno construido con **Vue 3** y **Vite**, con interfaz limpia y modo oscuro/claro corporativo.
+  - **Soporte HTTPS con Auto-Aprovisionamiento SSL/TLS:** Certificado autofirmado con Subject Alternative Names (SAN IP & DNS) generado automáticamente para garantizar el cumplimiento de W3C Secure Contexts y soporte pleno de portapapeles en el navegador.
+  - **Portapapeles Ultrarresistente:** Mecanismo dual con fallback automático `document.execCommand('copy')` para garantizar copia instantánea tanto en HTTP como en HTTPS.
   - **Panel de Ajustes del Sistema:** Modifica credenciales, cuota de concurrencia y temporizadores de ciclo de vida con validación en vivo.
   - **Edición en Caliente:** Permite modificar URLs de destino, nombres y tipos de dispositivo en caliente.
   - **One-Click Connect:** Botón de conexión directa que abre la sesión gráfica en JumpServer Luna.

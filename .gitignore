@@ -20,4 +20,7 @@ data/
 /data/
 /backup/
 /logs/
-
+ssl/
+*.key
+*.crt
+*.pem

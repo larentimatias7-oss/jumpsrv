@@ -655,23 +655,54 @@ const resetAutoRefreshTimer = () => {
   }
 }
 
-// 3. Quick Copy RDP Endpoint
+// 3. Quick Copy RDP Endpoint with Insecure Context Fallback
 const copiedKioskId = ref(null)
+
+const copyToClipboard = async (text) => {
+  // Try modern Clipboard API if in secure context
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch (e) {
+      // Fall through to legacy fallback
+    }
+  }
+
+  // Fallback for HTTP / non-secure contexts (e.g. http://<IP>:8080)
+  try {
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.top = '-9999px'
+    textArea.style.left = '-9999px'
+    textArea.style.opacity = '0'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    const successful = document.execCommand('copy')
+    document.body.removeChild(textArea)
+    return successful
+  } catch (err) {
+    return false
+  }
+}
 
 const copyRdpDetails = async (kiosk) => {
   const host = window.location.hostname || '127.0.0.1'
   const endpoint = `${host}:${kiosk.rdp_port}`
-  try {
-    await navigator.clipboard.writeText(endpoint)
+  const success = await copyToClipboard(endpoint)
+  if (success) {
     copiedKioskId.value = kiosk.id
     showToast(`Punto de conexión RDP copiado: ${endpoint}`)
     setTimeout(() => {
       if (copiedKioskId.value === kiosk.id) copiedKioskId.value = null
     }, 2500)
-  } catch (err) {
+  } else {
     showToast(`Error al copiar al portapapeles: ${endpoint}`, 'error')
   }
 }
+
 
 // 4. Export Inventory to JSON / CSV
 const exportInventory = (format = 'csv') => {

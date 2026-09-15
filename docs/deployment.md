@@ -88,7 +88,8 @@ JMS_CA_BUNDLE=/app/secrets/corporate_ca.crt
 | :--- | :--- | :--- | :--- | :--- |
 | **JumpServer Web/Luna** | `443/tcp` | HTTPS | LAN / WAN | Interfaz web principal, consola Luna Guacamole y API REST |
 | **JumpServer Web (HTTP)**| `80/tcp` | HTTP | LAN | Redirección a HTTPS o acceso interno |
-| **Kiosk Manager Dashboard** | `8080/tcp` | HTTP | LAN Admin | Panel de control web Nginx + Vue 3 de administración de quioscos |
+| **Kiosk Manager Dashboard (HTTPS)** | `8443/tcp` | HTTPS | LAN Admin | Panel seguro con TLS autofirmado y soporte pleno W3C Clipboard |
+| **Kiosk Manager Dashboard (HTTP)** | `8080/tcp` | HTTP | LAN Admin | Panel web compatible HTTP con fallback de portapapeles |
 | **Backend Kiosk API** | `8000/tcp` | HTTP | Localhost (`host`) | API REST FastAPI de orquestación y aprovisionamiento |
 | **Dispatcher RDP Pool** | `33891 - 33920` | TCP | Host (`0.0.0.0`) | Listeners TCP donde `jms_lion` conecta las sesiones gráficas |
 | **Contenedores Efímeros** | `3389/tcp` | TCP | Red interna Docker (`172.17.0.x`) | XRDP en contenedores `pam-web-kiosk` bajo demanda |
@@ -96,9 +97,37 @@ JMS_CA_BUNDLE=/app/secrets/corporate_ca.crt
 Reglas UFW sugeridas en el host:
 ```bash
 sudo ufw allow 443/tcp comment 'JumpServer HTTPS Luna'
-sudo ufw allow 8080/tcp comment 'Kiosk Manager Dashboard'
+sudo ufw allow 8443/tcp comment 'Kiosk Manager HTTPS Dashboard'
+sudo ufw allow 8080/tcp comment 'Kiosk Manager HTTP Dashboard'
 sudo ufw allow 33891:33920/tcp comment 'Kiosk Dispatcher RDP Pool'
 ```
+
+---
+
+## 2.1. Habilitación y Auto-Aprovisionamiento SSL/TLS en Kiosk Manager
+
+> [!TIP]
+> **Soporte de Portapapeles y Contexto Seguro:**
+> En los navegadores modernos, la API nativa de portapapeles (`navigator.clipboard`) solo se habilita en conexiones seguras (**HTTPS** o `localhost`). Si accede mediante HTTP a una IP privada (ej: `http://172.30.20.62:8080`), la API nativa se bloquea.
+> Para solucionar esto:
+> 1. **Fallback Inteligente en la App:** Se implementó un fallback transparente mediante `document.execCommand('copy')` para que el botón de copiar funcione siempre, incluso en HTTP.
+> 2. **Auto-Generación de Certificado TLS:** Kiosk Manager genera automáticamente un certificado autofirmado con SAN (Subject Alternative Names para IP y localhost) al iniciar el contenedor frontend o ejecutando el script oficial.
+
+### Generación y Prueba Manual del Certificado SSL
+En cualquier momento, en nuevas instalaciones o servidores desplegados:
+```bash
+# Detecta la IP del host y genera ssl/kiosk.crt y ssl/kiosk.key con SAN
+./scripts/setup_ssl.sh
+
+# O forzar una IP específica
+./scripts/setup_ssl.sh --force --ip 172.30.20.62
+
+# Verificar el estado y handshake del certificado
+python3 scripts/kioskctl check-ssl --host 172.30.20.62 --port 8443
+```
+Una vez activo, acceda al panel seguro mediante:
+`https://<SERVER_IP>:8443/luna/`
+
 
 ---
 
