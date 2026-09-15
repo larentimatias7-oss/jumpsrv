@@ -755,6 +755,131 @@ const exportInventory = (format = 'csv') => {
   }
 }
 
+// --- Full Backup & Restore (JSON) ---
+const showImportModal = ref(false)
+const importFile = ref(null)
+const importFileRaw = ref(null)
+const importPreview = ref(null)
+const importConflictStrategy = ref('skip') // 'skip' | 'update'
+const importAutoProvision = ref(true)
+const importingBackup = ref(false)
+const importResult = ref(null)
+const importErrorMessage = ref('')
+
+const downloadFullBackup = async () => {
+  try {
+    const res = await apiFetch('/api/backup/export')
+    if (!res.ok) {
+      showToast('Error al descargar el backup del sistema', 'error')
+      return
+    }
+    const data = await res.json()
+    const dateStr = new Date().toISOString().slice(0, 10)
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `kiosk-manager-backup-${dateStr}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast('Backup completo descargado exitosamente')
+  } catch (err) {
+    showToast('Error de red al descargar el backup', 'error')
+  }
+}
+
+const openImportModal = () => {
+  showImportModal.value = true
+  importFile.value = null
+  importFileRaw.value = null
+  importPreview.value = null
+  importResult.value = null
+  importErrorMessage.value = ''
+  importConflictStrategy.value = 'skip'
+  importAutoProvision.value = true
+}
+
+const handleImportFileChange = (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  processSelectedFile(file)
+}
+
+const handleFileDrop = (e) => {
+  const file = e.dataTransfer?.files?.[0]
+  if (!file) return
+  processSelectedFile(file)
+}
+
+const processSelectedFile = (file) => {
+  importErrorMessage.value = ''
+  importResult.value = null
+  if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+    importErrorMessage.value = 'Por favor selecciona un archivo de backup en formato JSON (.json)'
+    return
+  }
+  importFile.value = file
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    try {
+      const parsed = JSON.parse(event.target.result)
+      if (!parsed || typeof parsed !== 'object') {
+        throw new Error('El archivo no contiene un objeto JSON válido.')
+      }
+      importFileRaw.value = parsed
+      importPreview.value = {
+        version: parsed.version || '1.0',
+        exported_at: parsed.exported_at ? new Date(parsed.exported_at).toLocaleString() : 'Desconocida',
+        total_kiosks: Array.isArray(parsed.kiosks) ? parsed.kiosks.length : 0,
+        total_categories: Array.isArray(parsed.categories) ? parsed.categories.length : 0,
+        has_settings: !!parsed.settings && Object.keys(parsed.settings).length > 0,
+        app: parsed.system?.app || 'JumpServer Kiosk Manager'
+      }
+    } catch (err) {
+      importErrorMessage.value = `Error al leer archivo: ${err.message}`
+      importFileRaw.value = null
+      importPreview.value = null
+    }
+  }
+  reader.readAsText(file)
+}
+
+const executeImport = async () => {
+  if (!importFileRaw.value) {
+    importErrorMessage.value = 'Debes cargar un archivo JSON válido primero.'
+    return
+  }
+
+  importingBackup.value = true
+  importErrorMessage.value = ''
+  importResult.value = null
+
+  try {
+    const res = await apiFetch('/api/backup/import', {
+      method: 'POST',
+      body: JSON.stringify({
+        data: importFileRaw.value,
+        conflict_strategy: importConflictStrategy.value,
+        auto_provision_jms: importAutoProvision.value
+      })
+    })
+
+    const data = await res.json()
+    if (res.ok) {
+      importResult.value = data
+      showToast('Restauración completada con éxito')
+      fetchKiosks()
+      fetchCategories()
+    } else {
+      importErrorMessage.value = data.detail || 'Error al restaurar el backup'
+    }
+  } catch (err) {
+    importErrorMessage.value = `Error de red al restaurar: ${err.message}`
+  } finally {
+    importingBackup.value = false
+  }
+}
+
 // 5. Table Density Toggle ('normal' | 'compact')
 const tableDensity = ref(localStorage.getItem('kiosk_density') || 'normal')
 
@@ -1399,6 +1524,13 @@ onUnmounted(() => {
                 </button>
 
                 <div v-if="showActionsDropdown" class="toolbar-dropdown-menu" @click.stop>
+                  <div class="dropdown-menu-item" @click="downloadFullBackup(); showActionsDropdown = false">
+                    💾 Descargar Backup Completo (JSON)
+                  </div>
+                  <div class="dropdown-menu-item" @click="openImportModal(); showActionsDropdown = false">
+                    📤 Restaurar / Importar Backup...
+                  </div>
+                  <div class="dropdown-divider"></div>
                   <div class="dropdown-menu-item" @click="reconcileJmsAssets(); showActionsDropdown = false">
                     🧹 Reconciliar huérfanos en JumpServer
                   </div>
@@ -1406,10 +1538,10 @@ onUnmounted(() => {
                     ⚡ Probar conectividad de todas las URLs
                   </div>
                   <div class="dropdown-menu-item" @click="exportInventory('csv')">
-                    📥 Exportar inventario (CSV)
+                    📄 Exportar inventario visible (CSV)
                   </div>
                   <div class="dropdown-menu-item" @click="exportInventory('json')">
-                    📋 Exportar inventario (JSON)
+                    📋 Exportar inventario visible (JSON)
                   </div>
                   <div class="dropdown-divider"></div>
                   <a href="/luna/" target="_blank" class="dropdown-menu-item">
@@ -1975,6 +2107,166 @@ onUnmounted(() => {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- RESTORE / IMPORT BACKUP MODAL -->
+    <div v-if="showImportModal" class="jms-modal-backdrop" @click.self="showImportModal = false">
+      <div class="jms-modal-dialog modal-lg">
+        <div class="modal-head">
+          <div class="modal-head-title">
+            <h3>Restaurar / Importar Backup</h3>
+            <p>Restaura quioscos, categorías y configuraciones desde un archivo JSON exportado</p>
+          </div>
+          <button class="modal-close-btn" @click="showImportModal = false" :disabled="importingBackup">&times;</button>
+        </div>
+
+        <div class="modal-body-form">
+          <!-- File Drop Zone -->
+          <div 
+            class="import-dropzone" 
+            :class="{ 'has-file': !!importFile }"
+            @dragover.prevent 
+            @drop.prevent="handleFileDrop"
+            @click="$refs.backupFileInput?.click()"
+          >
+            <input 
+              ref="backupFileInput" 
+              type="file" 
+              accept=".json,application/json" 
+              class="hidden-file-input" 
+              @change="handleImportFileChange" 
+            />
+            <div class="dropzone-content">
+              <div class="dropzone-icon">
+                <svg v-if="!importFile" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <svg v-else width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--milicic-orange)" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+              </div>
+              <div v-if="!importFile" class="dropzone-text">
+                <span class="dropzone-primary">Arrastra tu archivo <strong>.json</strong> aquí o haz clic para seleccionarlo</span>
+                <span class="dropzone-sub">Compatible con backups completos generados por JumpServer Kiosk Manager</span>
+              </div>
+              <div v-else class="dropzone-text">
+                <span class="dropzone-filename">📄 {{ importFile.name }} ({{ (importFile.size / 1024).toFixed(1) }} KB)</span>
+                <span class="dropzone-sub">Clic para seleccionar otro archivo</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error Alert -->
+          <div v-if="importErrorMessage" class="import-alert error">
+            ⚠️ {{ importErrorMessage }}
+          </div>
+
+          <!-- Preview Card -->
+          <div v-if="importPreview" class="backup-preview-card">
+            <div class="preview-header">
+              <span class="preview-title">📊 Contenido del Backup</span>
+              <span class="preview-date">Fecha: {{ importPreview.exported_at }}</span>
+            </div>
+            <div class="preview-stats-grid">
+              <div class="preview-stat-box">
+                <span class="preview-stat-val">{{ importPreview.total_kiosks }}</span>
+                <span class="preview-stat-lbl">Quioscos</span>
+              </div>
+              <div class="preview-stat-box">
+                <span class="preview-stat-val">{{ importPreview.total_categories }}</span>
+                <span class="preview-stat-lbl">Categorías</span>
+              </div>
+              <div class="preview-stat-box">
+                <span class="preview-stat-val">{{ importPreview.has_settings ? 'Sí' : 'No' }}</span>
+                <span class="preview-stat-lbl">Políticas RAM</span>
+              </div>
+              <div class="preview-stat-box">
+                <span class="preview-stat-val">v{{ importPreview.version }}</span>
+                <span class="preview-stat-lbl">Versión</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Import Options -->
+          <div v-if="importPreview" class="import-options-box">
+            <div class="form-item">
+              <label class="form-label">Estrategia para quioscos con el mismo nombre</label>
+              <div class="radio-group-modern">
+                <label class="radio-option" :class="{ 'selected': importConflictStrategy === 'skip' }">
+                  <input type="radio" value="skip" v-model="importConflictStrategy" />
+                  <div class="radio-text">
+                    <strong>Saltar existentes (Recomendado)</strong>
+                    <span>Conserva los quioscos actuales sin modificarlos ni interrumpir sesiones.</span>
+                  </div>
+                </label>
+                <label class="radio-option" :class="{ 'selected': importConflictStrategy === 'update' }">
+                  <input type="radio" value="update" v-model="importConflictStrategy" />
+                  <div class="radio-text">
+                    <strong>Actualizar existentes</strong>
+                    <span>Actualiza la URL de destino, protocolo y categoría si el nombre ya existe.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-item">
+              <label class="checkbox-container">
+                <input type="checkbox" v-model="importAutoProvision" />
+                <span class="checkbox-label">
+                  <strong>Aprovisionar contenedores y activos JumpServer (-WEB) automáticamente</strong>
+                  <span class="checkbox-hint">Crea los volúmenes Docker y sincroniza activos, cuentas y permisos en JumpServer.</span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Result Card -->
+          <div v-if="importResult" class="import-result-card" :class="{ 'success': importResult.success, 'warning': !importResult.success }">
+            <div class="result-header">
+              <span v-if="importResult.success">✅ Restauración completada exitosamente</span>
+              <span v-else>⚠️ Restauración finalizada con observaciones</span>
+            </div>
+            <div class="result-stats">
+              <span class="result-badge"><strong>{{ importResult.imported_kiosks }}</strong> creados</span>
+              <span v-if="importResult.updated_kiosks > 0" class="result-badge"><strong>{{ importResult.updated_kiosks }}</strong> actualizados</span>
+              <span v-if="importResult.skipped_kiosks > 0" class="result-badge gray"><strong>{{ importResult.skipped_kiosks }}</strong> omitidos</span>
+              <span class="result-badge"><strong>{{ importResult.categories_created }}</strong> categorías</span>
+            </div>
+            <div v-if="importResult.errors && importResult.errors.length" class="result-errors">
+              <div v-for="(err, idx) in importResult.errors" :key="idx" class="result-error-item">
+                ❌ <strong>{{ err.name }}:</strong> {{ err.error }}
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-foot">
+            <button 
+              type="button" 
+              class="jms-btn jms-btn-default" 
+              @click="showImportModal = false" 
+              :disabled="importingBackup"
+            >
+              {{ importResult ? 'Cerrar' : 'Cancelar' }}
+            </button>
+            <button 
+              type="button" 
+              class="jms-btn jms-btn-primary" 
+              @click="executeImport" 
+              :disabled="!importFileRaw || importingBackup"
+              v-if="!importResult"
+            >
+              <span v-if="importingBackup">Restaurando...</span>
+              <span v-else>Iniciar Restauración</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     </template>
@@ -3348,5 +3640,246 @@ onUnmounted(() => {
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
+}
+
+/* Backup & Restore Modal Styles */
+.modal-lg {
+  max-width: 680px;
+  width: 92%;
+}
+
+.import-dropzone {
+  border: 2px dashed var(--jms-border-base);
+  border-radius: 8px;
+  padding: 24px 20px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.import-dropzone:hover, .import-dropzone.has-file {
+  border-color: var(--milicic-orange);
+  background: rgba(243, 146, 0, 0.06);
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.dropzone-icon {
+  color: var(--milicic-gray-light);
+}
+
+.dropzone-primary {
+  font-size: 13px;
+  color: var(--jms-text-main);
+  display: block;
+}
+
+.dropzone-filename {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--milicic-orange);
+  display: block;
+}
+
+.dropzone-sub {
+  font-size: 11px;
+  color: var(--milicic-gray-light);
+  display: block;
+  margin-top: 4px;
+}
+
+.import-alert {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+.import-alert.error {
+  background: var(--jms-danger-light);
+  color: var(--jms-danger);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.backup-preview-card {
+  background: rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--jms-border-base);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--jms-text-main);
+}
+
+.preview-date {
+  font-size: 11px;
+  color: var(--milicic-gray-light);
+}
+
+.preview-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.preview-stat-box {
+  background: var(--jms-card-bg);
+  border: 1px solid var(--jms-border-base);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preview-stat-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--milicic-orange);
+}
+
+.preview-stat-lbl {
+  font-size: 11px;
+  color: var(--milicic-gray-light);
+  text-transform: uppercase;
+}
+
+.import-options-box {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.radio-group-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--jms-border-base);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.radio-option:hover, .radio-option.selected {
+  border-color: var(--milicic-orange);
+  background: rgba(243, 146, 0, 0.05);
+}
+
+.radio-text strong {
+  display: block;
+  font-size: 12px;
+  color: var(--jms-text-main);
+}
+
+.radio-text span {
+  font-size: 11px;
+  color: var(--milicic-gray-light);
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.checkbox-label strong {
+  display: block;
+  color: var(--jms-text-main);
+}
+
+.checkbox-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--milicic-gray-light);
+}
+
+.import-result-card {
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+
+.import-result-card.success {
+  background: var(--jms-success-light);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+}
+
+.import-result-card.warning {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.result-header {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--jms-text-main);
+}
+
+.result-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.result-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  color: var(--jms-text-main);
+}
+
+.result-badge.gray {
+  color: var(--milicic-gray-light);
+}
+
+.result-errors {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-error-item {
+  font-size: 11px;
+  color: var(--jms-danger);
 }
 </style>

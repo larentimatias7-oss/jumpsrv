@@ -1,6 +1,8 @@
 from __future__ import annotations
+import datetime
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from ..auth.basic_auth import verify_credentials
 from ..auth.jms_auth import get_current_user
@@ -11,10 +13,12 @@ from ..config import (
 )
 from ..provisioning.provisioner import KioskProvisioner, KioskCreateRequest, KioskUpdateRequest
 from ..services.category import CategoryService
+from ..services.backup_service import BackupService
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 provisioner = KioskProvisioner()
 category_service = CategoryService(provisioner.jms.client)
+backup_service = BackupService(provisioner)
 
 
 @router.get("/auth/me", response_model=Dict[str, Any])
@@ -232,5 +236,62 @@ def sync_jms_nodes():
     try:
         with provisioner.db_factory() as session:
             return category_service.sync_jms_nodes(session)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+# --- Backup & Restore (Export / Import) ---
+
+@router.get("/backup/export")
+def export_backup():
+    """Export complete application state including categories, kiosks, and settings."""
+    try:
+        data = backup_service.export_backup()
+        date_str = datetime.date.today().strftime("%Y-%m-%d")
+        filename = f"kiosk-manager-backup-{date_str}.json"
+        return JSONResponse(
+            content=data,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Type": "application/json",
+            },
+        )
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/backup/import")
+async def import_backup(
+    request: Request,
+    conflict_strategy: Optional[str] = "skip",
+    auto_provision_jms: Optional[bool] = True,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """
+    Import and restore categories, kiosks, and settings from a backup JSON payload.
+    Supports either direct BackupPayload JSON or wrapped in {"data": ..., "conflict_strategy": ...}.
+    """
+    try:
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise ValueError("Invalid JSON body: expected an object")
+
+        if "data" in body and isinstance(body["data"], dict) and ("kiosks" in body["data"] or "categories" in body["data"]):
+            payload_data = body["data"]
+            conflict_strategy = body.get("conflict_strategy", conflict_strategy)
+            auto_provision_jms = body.get("auto_provision_jms", auto_provision_jms)
+        else:
+            payload_data = body
+
+        operator_username = current_user.get("username") or "backup-restore"
+        res = await backup_service.import_backup(
+            payload_data=payload_data,
+            conflict_strategy=conflict_strategy or "skip",
+            auto_provision_jms=auto_provision_jms if auto_provision_jms is not None else True,
+            created_by=operator_username,
+        )
+        return res
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
