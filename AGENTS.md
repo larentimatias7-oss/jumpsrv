@@ -7,7 +7,7 @@
 - **Resource Protection**: NEVER stop, modify, or delete any Docker container, volume, or network unless it carries the label `managed-by=jumpserver-kiosk-manager`.
 - **Privilege Restrictions**: NEVER run containers in `--privileged` mode.
 - **RDP & Dispatcher Architecture**:
-  - The Kiosk Dispatcher runs as an asyncio TCP relay in the backend (`network_mode: "host"`), listening on host ports (`33891 - 33920`).
+  - The Kiosk Dispatcher runs as an asyncio TCP relay in the backend (`network_mode: "host"`), listening on host ports (`33891 - 34090`).
   - Containers do NOT expose raw host ports directly; they run isolated on the bridge network and accept relayed traffic from the Dispatcher to container internal port 3389.
   - The JumpServer host asset is registered with the designated host IP (`KIOSK_HOST_IP` or auto-detected LAN IP).
 

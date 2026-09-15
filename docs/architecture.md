@@ -11,7 +11,7 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
 ## 2. Componentes Clave de la Arquitectura
 
 ### A. RDP Dispatcher Asíncrono (`backend/app/dispatcher/service.py`)
-- **Proxy TCP Transparente Asíncrono (`asyncio`):** El backend ejecuta en modo de red host (`network_mode: "host"`) y levanta un servidor TCP asíncrono para cada quiosco aprovisionado en el rango de puertos configurable `33891 - 33920`.
+- **Proxy TCP Transparente Asíncrono (`asyncio`):** El backend ejecuta en modo de red host (`network_mode: "host"`) y levanta un servidor TCP asíncrono para cada quiosco aprovisionado en el rango de puertos configurable `33891 - 34090` (hasta 200 quioscos).
 - **Detección de Conexión (RDP-SYN):** Al recibir la primera solicitud de conexión desde `jms_lion` (Apache Guacamole):
   1. Consulta la base de datos local SQLite para obtener los metadatos del quiosco (`container_name`, `volume_name`, `target_url`, `rdp_username`, etc.).
   2. Arranca el contenedor Docker correspondiente de forma instantánea (`ensure_container_running`).

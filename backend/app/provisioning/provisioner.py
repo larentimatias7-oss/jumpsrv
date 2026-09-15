@@ -126,7 +126,7 @@ class KioskProvisioner:
         docker_runtime: Optional[DockerRuntime] = None,
         jms_ops: Optional[JumpServerOperations] = None,
         host_ip: str = "127.0.0.1",
-        port_range: tuple[int, int] = (33891, 33920),
+        port_range: tuple[int, int] = (33891, 34090),
         image_tag: str = DEFAULT_KIOSK_IMAGE,
     ):
         self.db_factory = db_session_factory or init_db()

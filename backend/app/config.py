@@ -18,6 +18,8 @@ DEFAULT_DISCONNECT_GRACE_SECONDS = int(os.getenv("KIOSK_DISCONNECT_GRACE_SECONDS
 DEFAULT_IDLE_TIMEOUT_SECONDS = int(os.getenv("KIOSK_IDLE_TIMEOUT_SECONDS", "900"))
 DEFAULT_MAX_SESSION_LIFETIME_SECONDS = int(os.getenv("KIOSK_MAX_SESSION_LIFETIME_SECONDS", "14400"))
 DEFAULT_MAX_CONCURRENT_SESSIONS = int(os.getenv("KIOSK_MAX_CONCURRENT_SESSIONS", "4"))
+DEFAULT_PORT_RANGE_START = int(os.getenv("KIOSK_PORT_RANGE_START", "33891"))
+DEFAULT_PORT_RANGE_END = int(os.getenv("KIOSK_PORT_RANGE_END", "34090"))
 
 
 class SessionLifecycleSettings(BaseModel):
@@ -44,6 +46,18 @@ class SessionLifecycleSettings(BaseModel):
         ge=1,
         le=100,
         description="Maximum concurrent active kiosk sessions allowed on host",
+    )
+    port_min: int = Field(
+        default=DEFAULT_PORT_RANGE_START,
+        description="Minimum RDP dispatcher port",
+    )
+    port_max: int = Field(
+        default=DEFAULT_PORT_RANGE_END,
+        description="Maximum RDP dispatcher port",
+    )
+    total_ports: int = Field(
+        default=DEFAULT_PORT_RANGE_END - DEFAULT_PORT_RANGE_START + 1,
+        description="Total ports in dispatcher pool",
     )
 
 
@@ -81,11 +95,17 @@ def get_lifecycle_settings(db_factory=None) -> SessionLifecycleSettings:
     except Exception as e:
         logger.warning(f"Could not load lifecycle settings from database, using defaults: {e}")
 
+    port_start = int(os.getenv("KIOSK_PORT_RANGE_START", str(DEFAULT_PORT_RANGE_START)))
+    port_end = int(os.getenv("KIOSK_PORT_RANGE_END", str(DEFAULT_PORT_RANGE_END)))
+
     return SessionLifecycleSettings(
         disconnect_grace_seconds=grace,
         idle_timeout_seconds=idle,
         max_session_lifetime_seconds=max_life,
         max_concurrent_sessions=max_concurrent,
+        port_min=port_start,
+        port_max=port_end,
+        total_ports=max(0, port_end - port_start + 1),
     )
 
 

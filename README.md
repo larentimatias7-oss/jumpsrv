@@ -69,7 +69,7 @@ Permite acceder a consolas web de infraestructura crítica (Zabbix, switches, ro
 |                    JUMPSERVER KIOSK MANAGER               |                 |
 |                                                           |                 |
 |  +--------------------+    +------------------------------+--------------+  |
-|  | Web Panel (:8080)  |    | RDP Dispatcher Service (:33891 - :33920)    |  |
+|  | Web Panel (:8080)  |    | RDP Dispatcher Service (:33891 - :34090)    |  |
 |  | Nginx + Vue 3      |    | - Detección de tráfico RDP-SYN              |  |
 |  +---------+----------+    | - Just-In-Time Container Start              |  |
 |            |               | - Sondeo de socket interno 3389             |  |
@@ -113,7 +113,7 @@ Permite acceder a consolas web de infraestructura crítica (Zabbix, switches, ro
 | :--- | :--- | :--- | :--- |
 | **Kiosk Manager Dashboard** | `8080/tcp` | Bridge (`8080:80`) | Interfaz de administración Nginx + Vue 3 |
 | **Backend FastAPI** | `8000/tcp` | Host | API REST de orquestación y aprovisionamiento |
-| **RDP Dispatcher Pool** | `33891 - 33920` | Host | Rango TCP para escucha de conexiones RDP entrantes |
+| **RDP Dispatcher Pool** | `33891 - 34090` | Host | Rango TCP para escucha de conexiones RDP entrantes (hasta 200 quioscos) |
 | **JumpServer Web/Luna** | `80/tcp` | Host/Proxy | Portal principal de JumpServer |
 
 ### Prerrequisitos en Host (Ubuntu Minimal / Debian)

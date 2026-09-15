@@ -91,7 +91,7 @@ JMS_CA_BUNDLE=/app/secrets/corporate_ca.crt
 | **Kiosk Manager Dashboard (HTTPS)** | `8443/tcp` | HTTPS | LAN Admin | Panel seguro con TLS autofirmado y soporte pleno W3C Clipboard |
 | **Kiosk Manager Dashboard (HTTP)** | `8080/tcp` | HTTP | LAN Admin | Panel web compatible HTTP con fallback de portapapeles |
 | **Backend Kiosk API** | `8000/tcp` | HTTP | Localhost (`host`) | API REST FastAPI de orquestación y aprovisionamiento |
-| **Dispatcher RDP Pool** | `33891 - 33920` | TCP | Host (`0.0.0.0`) | Listeners TCP donde `jms_lion` conecta las sesiones gráficas |
+| **Dispatcher RDP Pool** | `33891 - 34090` | TCP | Host (`0.0.0.0`) | Listeners TCP donde `jms_lion` conecta las sesiones gráficas (200 puertos) |
 | **Contenedores Efímeros** | `3389/tcp` | TCP | Red interna Docker (`172.17.0.x`) | XRDP en contenedores `pam-web-kiosk` bajo demanda |
 
 Reglas UFW sugeridas en el host:
@@ -99,7 +99,7 @@ Reglas UFW sugeridas en el host:
 sudo ufw allow 443/tcp comment 'JumpServer HTTPS Luna'
 sudo ufw allow 8443/tcp comment 'Kiosk Manager HTTPS Dashboard'
 sudo ufw allow 8080/tcp comment 'Kiosk Manager HTTP Dashboard'
-sudo ufw allow 33891:33920/tcp comment 'Kiosk Dispatcher RDP Pool'
+sudo ufw allow 33891:34090/tcp comment 'Kiosk Dispatcher RDP Pool'
 ```
 
 ---
@@ -170,7 +170,7 @@ JMS_DEFAULT_NODE_NAME="SWITCHES ROSARIO"
 # IP del Host para registro de activos RDP en JumpServer
 KIOSK_HOST_IP=<IP_LAN_HOST>
 KIOSK_PORT_RANGE_START=33891
-KIOSK_PORT_RANGE_END=33920
+KIOSK_PORT_RANGE_END=34090
 
 # Credenciales administrativas del Dashboard (:8080)
 PORTAL_ADMIN_USER=admin

@@ -10,7 +10,7 @@ Cuando un administrador registra un nuevo dispositivo desde el panel web (`:8080
       v
 1. Validación de Datos (Nombre, IP, Protocolo, Puerto, URL de Destino)
       |
-2. Asignación de Puerto RDP libre (rango 33891 - 33920)
+2. Asignación de Puerto RDP libre (rango 33891 - 34090)
       |
 3. Creación de Volumen Docker Persistente (rdp_<nombre>) con label managed-by
       |

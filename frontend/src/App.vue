@@ -121,6 +121,9 @@ const lifecycleSettings = ref({
   max_session_lifetime_seconds: 14400,
   max_concurrent_sessions: 4
 })
+const portMin = ref(33891)
+const portMax = ref(34090)
+const totalPorts = computed(() => Math.max(1, portMax.value - portMin.value + 1))
 const loadingSettings = ref(false)
 const savingSettings = ref(false)
 
@@ -141,6 +144,8 @@ const fetchSettings = async () => {
         max_session_lifetime_seconds: data.max_session_lifetime_seconds ?? 14400,
         max_concurrent_sessions: data.max_concurrent_sessions ?? 4
       }
+      if (data.port_min) portMin.value = Number(data.port_min)
+      if (data.port_max) portMax.value = Number(data.port_max)
     }
   } catch (err) {
     console.error('Error al cargar configuración del sistema:', err)
@@ -1256,10 +1261,10 @@ onUnmounted(() => {
 
           <div class="milicic-stat-card">
             <div class="milicic-circle-badge">
-              <span class="circle-number">{{ kiosks.length }}/30</span>
+              <span class="circle-number">{{ kiosks.length }}/{{ totalPorts }}</span>
             </div>
             <span class="stat-main-label">Puertos RDP</span>
-            <span class="stat-sub-label">Pool asignado :33891 - :33920</span>
+            <span class="stat-sub-label">Pool asignado :{{ portMin }} - :{{ portMax }}</span>
           </div>
         </div>
 
