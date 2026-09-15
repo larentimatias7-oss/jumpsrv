@@ -4,6 +4,7 @@ import secrets
 import string
 import socket
 import time
+import asyncio
 import logging
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
@@ -29,6 +30,7 @@ class KioskCreateRequest(BaseModel):
     category_id: Optional[str] = None
     category_name: Optional[str] = None
     user_group_ids: Optional[List[str]] = None
+    verify_rdp: Optional[bool] = Field(default=False, description="Check RDP socket readiness before JumpServer registration")
 
 
 class KioskUpdateRequest(BaseModel):
@@ -55,6 +57,53 @@ def detect_host_ip(fallback: str = "127.0.0.1") -> str:
     except Exception:
         pass
     return env_ip or fallback
+
+
+async def wait_for_rdp_ready(
+    host: str,
+    port: int,
+    timeout: float = 10.0,
+    interval: float = 0.5,
+) -> bool:
+    """
+    Asynchronously probes a host and port until an XRDP/TCP socket connection succeeds
+    or timeout expires.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            time_left = max(0.05, min(interval, deadline - time.time()))
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port),
+                timeout=time_left,
+            )
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+            return True
+        except Exception:
+            await asyncio.sleep(interval)
+    return False
+
+
+def check_socket_ready_sync(
+    host: str,
+    port: int,
+    timeout: float = 10.0,
+    interval: float = 0.5,
+) -> bool:
+    """Synchronous socket check with timeout for non-async provisioning callers."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            time_left = max(0.05, min(interval, deadline - time.time()))
+            with socket.create_connection((host, port), timeout=time_left):
+                return True
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            time.sleep(interval)
+    return False
 
 
 class KioskProvisioner:
@@ -121,7 +170,14 @@ class KioskProvisioner:
                 })
             return out
 
-    def provision(self, req: KioskCreateRequest) -> Dict[str, Any]:
+    def provision(
+        self,
+        req: KioskCreateRequest,
+        verify_rdp: bool = False,
+        rdp_probe_timeout: float = 10.0,
+        rdp_host: Optional[str] = None,
+        rdp_port: Optional[int] = None,
+    ) -> Dict[str, Any]:
         clean_name = req.name.strip().upper()
         if not req.target_url:
             target_url = f"{req.target_protocol.lower()}://{req.target_ip}:{req.target_port}"
@@ -190,13 +246,40 @@ class KioskProvisioner:
             vol = self.docker.create_volume(volume_name, kiosk_id)
             created_resources.append(("volume", volume_name))
 
-            # 6. JumpServer: Register RDP Asset with Node UUID
+            # Readiness Gate (Healthcheck de Contenedor previo al registro en JumpServer)
+            should_verify = (
+                verify_rdp
+                or getattr(req, "verify_rdp", False)
+                or os.environ.get("KIOSK_VERIFY_RDP_READINESS", "").strip().lower() in ("true", "1", "yes")
+            )
+            if should_verify:
+                probe_target_host = rdp_host or self.host_ip
+                probe_target_port = rdp_port or port
+                logger.info(
+                    "Readiness gate: probing RDP socket on %s:%s (timeout=%.1fs)...",
+                    probe_target_host, probe_target_port, rdp_probe_timeout,
+                )
+                is_ready = check_socket_ready_sync(probe_target_host, probe_target_port, timeout=rdp_probe_timeout)
+                if not is_ready:
+                    err_msg = f"RDP socket readiness probe failed on {probe_target_host}:{probe_target_port} after {rdp_probe_timeout}s"
+                    logger.error("[Readiness Gate Failed] %s. Aborting JumpServer asset creation.", err_msg)
+                    with self.db_factory() as session:
+                        k = session.query(KioskModel).get(kiosk_id)
+                        if k:
+                            k.status = "PROVISION_FAILED"
+                            k.last_error = err_msg
+                            session.commit()
+                    self._rollback(created_resources)
+                    raise RuntimeError(err_msg)
+
+            # 6. JumpServer: Register RDP Asset with Node UUID and Audit Metadata
             jms_asset = self.jms.create_rdp_asset(
                 name=clean_name,
                 ip=self.host_ip,
                 port=port,
                 node_id=resolved_node_id,
                 platform_id=5,
+                category_name=cat_name,
             )
             jms_asset_id = jms_asset.get("id")
             created_resources.append(("jms_asset", jms_asset_id))
@@ -245,7 +328,8 @@ class KioskProvisioner:
             with self.db_factory() as session:
                 k = session.query(KioskModel).get(kiosk_id)
                 if k:
-                    k.status = "FAILED"
+                    if k.status != "PROVISION_FAILED":
+                        k.status = "FAILED"
                     k.last_error = str(e)
                     session.commit()
             raise
@@ -416,3 +500,60 @@ class KioskProvisioner:
             self.docker.remove_volume(k.volume_name)
             self.docker.create_volume(k.volume_name, k.id)
             return True
+
+    def reconcile_with_jumpserver(self) -> Dict[str, Any]:
+        """
+        Periodically garbage-collects orphaned JumpServer assets.
+        1. Fetches all managed assets in JumpServer (tagged kiosk-manager or with managed comment).
+        2. Compares against active kiosks in local DB.
+        3. Purgues any orphan assets from JumpServer whose containers/records no longer exist.
+        """
+        raw_assets = self.jms.client.get("/api/v1/assets/assets/")
+        all_assets = (
+            raw_assets.get("results", [])
+            if isinstance(raw_assets, dict)
+            else (raw_assets if isinstance(raw_assets, list) else [])
+        )
+
+        with self.db_factory() as session:
+            active_kiosks = session.query(KioskModel).all()
+            known_asset_ids = {k.jms_asset_id for k in active_kiosks if k.jms_asset_id}
+            known_names = {k.name.strip().upper() for k in active_kiosks if k.name}
+
+        managed_assets = []
+        purged_assets = []
+        for asset in all_assets:
+            if not isinstance(asset, dict):
+                continue
+            comment = str(asset.get("comment", "")).lower()
+            tags = [str(t).lower() for t in asset.get("tags", [])]
+            is_managed = (
+                "managed by kiosk-manager" in comment
+                or "managed by jumpserver kiosk manager" in comment
+                or "kiosk-manager" in tags
+                or "ephemeral" in tags
+            )
+            if not is_managed:
+                continue
+
+            managed_assets.append(asset)
+            asset_id = asset.get("id")
+            asset_name = str(asset.get("name", "")).strip().upper()
+
+            # If asset is not associated with any active local kiosk record, it's an orphan
+            if asset_id not in known_asset_ids and asset_name not in known_names:
+                logger.info(
+                    "[Garbage Collection] Found orphan JumpServer asset: %s (ID: %s). Purging...",
+                    asset_name, asset_id,
+                )
+                deleted = self.jms.delete_asset(asset_id)
+                if deleted:
+                    purged_assets.append({"id": asset_id, "name": asset.get("name")})
+
+        return {
+            "total_jms_assets": len(all_assets),
+            "managed_jms_assets": len(managed_assets),
+            "local_kiosks_count": len(active_kiosks),
+            "purged_count": len(purged_assets),
+            "purged_assets": purged_assets,
+        }

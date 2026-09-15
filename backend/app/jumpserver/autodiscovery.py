@@ -98,6 +98,17 @@ def save_cached_credentials(key_id: str, secret: str) -> None:
         logger.warning(f"Failed to persist JumpServer credentials to {cache_file}: {e}")
 
 
+def invalidate_cached_credentials() -> None:
+    """Invalidate and delete the persistent JumpServer credentials cache file."""
+    cache_file = get_cache_file_path()
+    try:
+        if cache_file.exists():
+            cache_file.unlink()
+            logger.info("Invalidated persistent JumpServer credentials cache file")
+    except Exception as e:
+        logger.warning(f"Failed to remove JumpServer credentials cache file {cache_file}: {e}")
+
+
 def parse_autodiscover_output(output_text: str) -> Optional[Tuple[str, str]]:
     """Parse stdout/stderr output from JumpServer manage.py shell execution.
 

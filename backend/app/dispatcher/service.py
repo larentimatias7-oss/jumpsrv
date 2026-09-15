@@ -13,9 +13,12 @@ from ..config import (
 )
 from ..docker_runtime.client import DockerRuntime
 from ..models.database import KioskModel, init_db
+from ..provisioning.provisioner import wait_for_rdp_ready
 
 logger = logging.getLogger("kiosk.dispatcher")
 DEFAULT_KIOSK_IMAGE = os.getenv("KIOSK_DOCKER_IMAGE", "ghcr.io/larentimatias7-oss/jumpsrv/pam-web-kiosk:latest")
+
+__all__ = ["KioskDispatcher", "wait_for_rdp_ready"]
 
 
 class KioskDispatcher:

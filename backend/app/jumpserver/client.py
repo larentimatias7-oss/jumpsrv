@@ -31,6 +31,14 @@ class JumpServerClient:
         logger.debug("JumpServerClient initialized: base_url=%s, verify_ssl=%s", self._base, self._verify)
 
     def _headers(self, method: str, path: str) -> dict[str, str]:
+        # If active session token exists, prioritize Bearer token auth
+        if getattr(self, "_token", None):
+            return {
+                "Authorization": f"Bearer {self._token}",
+                "X-JMS-ORG": self.config.org_id,
+                "Accept": "application/json",
+            }
+
         key_id = self.config.get_key_id()
         secret = self.config.load_secret()
 
@@ -49,6 +57,55 @@ class JumpServerClient:
         )
         headers["X-JMS-ORG"] = self.config.org_id
         return headers
+
+    def authenticate_token(self, username: str | None = None, password: str | None = None) -> str | None:
+        """Execute authentication via /api/v1/authentication/auth/ to obtain and cache session token."""
+        user = username or os.getenv("JMS_USERNAME") or os.getenv("JUMPSERVER_USERNAME")
+        pwd = password or os.getenv("JMS_PASSWORD") or os.getenv("JUMPSERVER_PASSWORD")
+        if not user or not pwd:
+            return None
+        try:
+            with httpx.Client(base_url=self._base, verify=self._verify, timeout=self.config.timeout) as http:
+                resp = http.post(
+                    "/api/v1/authentication/auth/",
+                    json={"username": user, "password": pwd},
+                    headers={"X-JMS-ORG": self.config.org_id, "Accept": "application/json"},
+                )
+                if resp.status_code in (200, 201):
+                    data = resp.json()
+                    tok = data.get("token") or data.get("access_token") or data.get("keyword")
+                    if tok:
+                        self._token = tok
+                        logger.info("Successfully refreshed session token via /api/v1/authentication/auth/")
+                        return tok
+        except Exception as e:
+            logger.warning("Token re-authentication via /api/v1/authentication/auth/ failed: %s", e)
+        return None
+
+    def refresh_authentication(self) -> bool:
+        """
+        Invalidates cached tokens and credentials.
+        Attempts re-authentication via /api/v1/authentication/auth/ if user/pass configured,
+        otherwise refreshes AccessKey from cache or Docker autodiscovery.
+        """
+        self._token = None
+        tok = self.authenticate_token()
+        if tok:
+            return True
+
+        try:
+            from .autodiscovery import invalidate_cached_credentials
+            invalidate_cached_credentials()
+            self.config.key_id = ""
+            self.config.secret_value = ""
+            k_id = self.config.get_key_id()
+            sec = self.config.load_secret()
+            self._secret = sec
+            logger.info("Refreshed JumpServer authentication credentials: key_id=%s", k_id)
+            return bool(k_id and sec)
+        except Exception as e:
+            logger.warning("Failed to refresh JumpServer authentication: %s", e)
+            return False
 
     def _request(
         self,
@@ -83,16 +140,39 @@ class JumpServerClient:
                         headers=headers,
                         json=json_body,
                     )
+
+                # 1. Check for transient gateway errors (502, 503, 504)
+                if resp.status_code in (502, 503, 504) and attempt < self.config.max_retries:
+                    backoff = min(1.0 * (2 ** (attempt - 1)), 4.0)
+                    logger.warning(
+                        "JumpServer returned HTTP %d on attempt %d/%d for %s %s. Retrying in %.1fs...",
+                        resp.status_code, attempt, self.config.max_retries, method, signed_path, backoff
+                    )
+                    time.sleep(backoff)
+                    continue
+
+                # 2. Check for auth errors (401, 403) requiring token/credentials renewal
+                if resp.status_code in (401, 403) and attempt < self.config.max_retries:
+                    logger.warning(
+                        "JumpServer returned HTTP %d on attempt %d/%d for %s %s. Refreshing auth credentials...",
+                        resp.status_code, attempt, self.config.max_retries, method, signed_path
+                    )
+                    refreshed = self.refresh_authentication()
+                    if refreshed:
+                        time.sleep(0.5)
+                        continue
+
                 return self._handle_response(resp, method, signed_path)
             except (httpx.ConnectError, httpx.TimeoutException) as e:
                 last_exc = JumpServerNetworkError(
                     f"{method} {signed_path}: {e}", attempt=attempt
                 )
+                backoff = min(1.0 * (2 ** (attempt - 1)), 4.0)
                 logger.warning(
-                    "retry %d/%d %s %s: %s",
-                    attempt, self.config.max_retries, method, signed_path, e,
+                    "retry %d/%d %s %s: %s (backing off %.1fs)",
+                    attempt, self.config.max_retries, method, signed_path, e, backoff
                 )
-                time.sleep(min(2 ** attempt, 8))
+                time.sleep(backoff)
         if last_exc:
             raise last_exc
         raise JumpServerError(f"Request failed unexpectedly: {method} {path}")
@@ -234,3 +314,25 @@ class JumpServerClient:
     def create_asset(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Create asset in JumpServer via /api/v1/assets/assets/."""
         return self.post("/api/v1/assets/assets/", payload)
+
+    def delete_asset(self, asset_id: str) -> bool:
+        """Safely and idempotently delete asset in JumpServer via /api/v1/assets/assets/{asset_id}/.
+        Treats 404 Not Found as success (already deleted)."""
+        if not asset_id:
+            return True
+        try:
+            self.delete(f"/api/v1/assets/assets/{asset_id}/")
+            return True
+        except JumpServerError as jse:
+            err_msg = str(jse)
+            if "404" in err_msg or "Not Found" in err_msg:
+                logger.info("Asset %s already deleted or not found in JumpServer (idempotent)", asset_id)
+                return True
+            logger.warning("Failed to delete JumpServer asset %s: %s", asset_id, jse)
+            return False
+        except Exception as e:
+            err_msg = str(e)
+            if "404" in err_msg or "Not Found" in err_msg:
+                return True
+            logger.warning("Unexpected error deleting JumpServer asset %s: %s", asset_id, e)
+            return False

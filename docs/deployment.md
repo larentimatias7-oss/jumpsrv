@@ -179,3 +179,47 @@ docker compose up -d
    ```
 4. **Acceso al Dashboard:**
    Navegar a `http://<SERVER_IP>:8080/` e iniciar sesión con las credenciales configuradas en `PORTAL_ADMIN_USER` / `PORTAL_ADMIN_PASSWORD`.
+
+---
+
+## 5. Mantenimiento, Reconciliación y Resiliencia Empresarial
+
+### 5.1. Reconciliación Periódica y Garbage Collection de Activos
+Para limpiar de forma proactiva activos huérfanos en JumpServer cuyos contenedores o quioscos locales ya hayan sido eliminados (por ejemplo, tras pruebas manuales o caídas del host):
+
+```bash
+# Invocar el endpoint de reconciliación administrativa
+curl -X POST -u admin:admin http://127.0.0.1:8000/api/kiosks/reconcile-jms
+```
+
+Respuesta esperada:
+```json
+{
+  "total_jms_assets": 12,
+  "managed_jms_assets": 4,
+  "local_kiosks_count": 3,
+  "purged_count": 1,
+  "purged_assets": [
+    {"id": "a918f0c2-1234-5678-9abc-def012345678", "name": "OLD-TEST-KIOSK"}
+  ]
+}
+```
+
+Puede programarse como una tarea de cron periódica en el host:
+```bash
+# Ejecutar garbage collection cada noche a las 03:00 AM
+0 3 * * * curl -s -X POST -u admin:admin http://127.0.0.1:8000/api/kiosks/reconcile-jms > /dev/null
+```
+
+### 5.2. Verificación de Socket RDP (Readiness Gate)
+Si se desea exigir la apertura exitosa del socket XRDP antes de crear el activo en JumpServer, active la variable en `.env`:
+```dotenv
+KIOSK_VERIFY_RDP_READINESS=true
+```
+Esto evita la creación de activos no funcionales si un contenedor experimenta demoras de inicio o fallas en el servicio XRDP.
+
+### 5.3. Resiliencia HTTP y Manejo de Tokens
+El backend implementa de forma transparente:
+- Reintentos con retroceso exponencial de 1 a 4 segundos ante errores de transporte (`502`, `503`, `504`, caídas de red o reinicios de `jms_core`).
+- Reautenticación automática e invalidación de credenciales en caché si JumpServer responde `401 Unauthorized` o `403 Forbidden`, sin interrumpir las operaciones del usuario.
+

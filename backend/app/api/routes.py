@@ -126,6 +126,19 @@ async def delete_kiosk(kiosk_id: str):
     return {"status": "deleted", "kiosk_id": kiosk_id}
 
 
+@router.post("/kiosks/reconcile-jms")
+@router.post("/kiosk/reconcile-jms")
+def reconcile_jumpserver_assets():
+    """
+    Garbage collection endpoint to reconcile and purge orphan JumpServer assets
+    that no longer have an active kiosk record in kiosk-manager.
+    """
+    try:
+        return provisioner.reconcile_with_jumpserver()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
 # --- Category & JumpServer Node Management ---
 
 @router.get("/categories", response_model=List[Dict[str, Any]])

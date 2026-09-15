@@ -94,3 +94,30 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
   - `JMS_DEFAULT_NODE_NAME`: Nombre del nodo de respaldo por defecto (por defecto: `"SWITCHES ROSARIO"`).
   - `JMS_DEFAULT_NODE_ID`: UUID opcional para fijar estáticamente el nodo de destino.
 
+### H. Resiliencia Empresarial, Healthcheck RDP y Ciclo de Vida Completo (Enterprise-Grade)
+
+Para garantizar estabilidad de nivel producción en despliegues con alto volumen de operadores y quioscos concurrentes, se incorporaron cuatro pilares de confiabilidad:
+
+1. **Desaprovisionamiento Idempotente y Garbage Collection:**
+   - **`delete_asset(asset_id: str) -> bool`:** Ejecuta `DELETE /api/v1/assets/assets/{asset_id}/` tolerando respuestas `404 Not Found` como éxito (idempotencia garantizada).
+   - **Hook en Destrucción (`deprovision`):** Al eliminar un quiosco desde el portal o API, se purgan secuencialmente la regla de permiso (`asset-permissions`), la cuenta de credenciales (`accounts`) y el activo (`assets`) en JumpServer, junto con el contenedor y volumen Docker.
+   - **Job de Reconciliación Periódica (`POST /api/kiosks/reconcile-jms` y `POST /api/kiosk/reconcile-jms`):** Obtiene todos los activos gestionados en JumpServer (identificados por tags `kiosk-manager`, `ephemeral` o prefijo de comentario), compara contra el catálogo de quioscos activos en SQLite y purga cualquier activo huérfano o remanente sin contenedor local.
+
+2. **Readiness Gate de Socket RDP (`wait_for_rdp_ready`):**
+   - **Prevención de Conexión Rechazada en Luna:** Si un usuario abre la consola inmediatamente tras aprovisionar el quiosco, Lion/Guacamole podría fallar si el servicio XRDP aún está levantando en el contenedor.
+   - **Sondeo Asíncrono de Socket:** `wait_for_rdp_ready(host, port, timeout=10.0, interval=0.5)` verifica la apertura efectiva del socket TCP. Si supera el tiempo límite, el estado del quiosco se establece en `PROVISION_FAILED` y se ejecuta rollback de recursos locales sin crear activos inválidos o inalcanzables en JumpServer.
+
+3. **Resiliencia HTTP con Backoff Exponencial y Renovación Transparente de Token:**
+   - **Reintentos Exponenciales:** Las peticiones salientes hacia JumpServer reintentan automáticamente ante fallas de transporte (`httpx.ConnectError`, `httpx.TimeoutException`, errores `502`, `503`, `504`) con hasta 3 intentos y retroceso exponencial de 1 a 4 segundos.
+   - **Renovación Transparente de Token/Sesión:** Si JumpServer retorna `401 Unauthorized` o `403 Forbidden` (por token caducado o rotación de AccessKey), el cliente invalida la caché local, reautentica automáticamente (vía `/api/v1/authentication/auth/` o redescubrimiento Docker de `jms_core`) y reintenta la solicitud original de manera transparente sin interrumpir la operación del usuario.
+
+4. **Metadatos Forenses de Auditoría y Trazabilidad (Audit Tags):**
+   - Cada activo registrado en JumpServer incorpora metadatos estructurados para auditoría y trazabilidad:
+     ```json
+     {
+       "comment": "Managed by Kiosk-Manager | Device: {device_name} | CreatedBy: {requester_username}",
+       "tags": ["kiosk-manager", "ephemeral", "category:{category_name}"]
+     }
+     ```
+   - Esto permite que los auditores identifiquen de inmediato el origen del quiosco efímero, su categoría y el operador responsable tanto en el inventario de activos como en los registros de auditoría y grabaciones de sesión de JumpServer.
+

@@ -119,7 +119,10 @@ class JumpServerOperations:
         node_id: str | None = None,
         platform: int | str = 5,
         platform_id: int | None = None,
-        comment: str = "Managed by JumpServer Kiosk Manager",
+        comment: str | None = None,
+        tags: list[str] | None = None,
+        category_name: str | None = None,
+        created_by: str = "kiosk-manager",
         endpoint: str = "/api/v1/assets/hosts/",
         **kwargs: Any,
     ) -> dict[str, Any]:
@@ -131,8 +134,16 @@ class JumpServerOperations:
             "protocols": [{"name": "rdp", "port": port}],
             "is_active": True,
         }
-        if comment:
+        if comment is not None:
             payload["comment"] = comment
+        else:
+            payload["comment"] = f"Managed by Kiosk-Manager | Device: {name} | CreatedBy: {created_by}"
+
+        if tags is not None:
+            payload["tags"] = tags
+        else:
+            cat_tag = f"category:{category_name}" if category_name else "category:default"
+            payload["tags"] = ["kiosk-manager", "ephemeral", cat_tag]
 
         resolved_node = self.resolve_node_id(node_id)
         if resolved_node and is_valid_uuid(resolved_node):
@@ -141,8 +152,17 @@ class JumpServerOperations:
         return self.client.post(endpoint, payload)
 
     def create_asset(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Create asset via generic /api/v1/assets/assets/ endpoint."""
-        return self.client.post("/api/v1/assets/assets/", payload)
+        """Create asset via generic /api/v1/assets/assets/ endpoint with audit metadata."""
+        p = dict(payload)
+        name = p.get("name", "generic-kiosk")
+        if "comment" not in p or not p["comment"]:
+            created_by = p.get("created_by", "kiosk-manager")
+            p["comment"] = f"Managed by Kiosk-Manager | Device: {name} | CreatedBy: {created_by}"
+        if "tags" not in p or p["tags"] is None:
+            cat = p.get("category_name")
+            cat_tag = f"category:{cat}" if cat else "category:default"
+            p["tags"] = ["kiosk-manager", "ephemeral", cat_tag]
+        return self.client.create_asset(p)
 
     def create_account(
         self,
@@ -186,8 +206,8 @@ class JumpServerOperations:
 
         return self.client.post("/api/v1/perms/asset-permissions/", payload)
 
-    def delete_asset(self, asset_id: str) -> Any:
-        return self.client.delete(f"/api/v1/assets/assets/{asset_id}/")
+    def delete_asset(self, asset_id: str) -> bool:
+        return self.client.delete_asset(asset_id)
 
     def delete_account(self, account_id: str) -> Any:
         return self.client.delete(f"/api/v1/accounts/accounts/{account_id}/")
