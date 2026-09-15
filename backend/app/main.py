@@ -59,7 +59,9 @@ async def startup_event():
     import asyncio
     from .provisioning.provisioner import detect_host_ip
     from .config import get_lifecycle_settings
+    logger.info("Initializing database and checking schema migrations...")
     db_factory = init_db()
+    logger.info("Database schema verified and ready.")
     host_ip = detect_host_ip()
 
     # Apply persisted session lifecycle & RAM conservation settings

@@ -71,6 +71,42 @@ class SystemSettingModel(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 
+import logging
+from sqlalchemy import inspect, text
+
+logger = logging.getLogger("kiosk.database.migration")
+
+
+def run_auto_migrations(engine) -> None:
+    """
+    Safely and idempotently migrates SQLite database schema.
+    Ensures that any new tables exist and that existing tables have
+    all required columns added without modifying or deleting pre-existing data.
+    """
+    # 1. Create any missing tables (e.g. categories, system_settings)
+    Base.metadata.create_all(bind=engine)
+
+    # 2. Inspect kiosks table and append missing columns
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    if "kiosks" in table_names:
+        existing_cols = {col["name"] for col in inspector.get_columns("kiosks")}
+
+        # Required columns for JumpServer node and category integration
+        required_cols = [
+            ("jms_node_id", "VARCHAR(64)"),
+            ("jms_node_name", "VARCHAR(128)"),
+            ("category_id", "VARCHAR(36)"),
+            ("category_name", "VARCHAR(64)"),
+        ]
+
+        with engine.begin() as conn:
+            for col_name, col_type in required_cols:
+                if col_name not in existing_cols:
+                    logger.info("Auto-migrating kiosks table: adding column %s (%s)", col_name, col_type)
+                    conn.execute(text(f"ALTER TABLE kiosks ADD COLUMN {col_name} {col_type};"))
+
+
 def init_db(db_url: str = None):
     if not db_url:
         db_url = os.getenv("DATABASE_URL")
@@ -97,5 +133,8 @@ def init_db(db_url: str = None):
         with engine.connect() as conn:
             conn.exec_driver_sql("PRAGMA journal_mode=WAL;")
             conn.exec_driver_sql("PRAGMA synchronous=NORMAL;")
-    Base.metadata.create_all(bind=engine)
+
+    # Run safe and idempotent schema auto-migrations
+    run_auto_migrations(engine)
+
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
