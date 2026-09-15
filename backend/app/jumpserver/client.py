@@ -373,6 +373,17 @@ class JumpServerClient:
         """Create asset in JumpServer via /api/v1/assets/assets/."""
         return self.post("/api/v1/assets/assets/", payload)
 
+    def update_asset(self, asset_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Safely update an asset in JumpServer, trying /api/v1/assets/assets/{asset_id}/ first,
+        falling back to /api/v1/assets/hosts/{asset_id}/."""
+        if not asset_id:
+            raise ValueError("asset_id is required to update asset")
+        try:
+            return self.patch(f"/api/v1/assets/assets/{asset_id}/", data)
+        except Exception as e:
+            logger.debug("PATCH /api/v1/assets/assets/%s/ failed (%s), falling back to /hosts/", asset_id, e)
+            return self.patch(f"/api/v1/assets/hosts/{asset_id}/", data)
+
     def delete_asset(self, asset_id: str) -> bool:
         """Safely and idempotently delete asset in JumpServer via /api/v1/assets/assets/{asset_id}/.
         Treats 404 Not Found as success (already deleted)."""

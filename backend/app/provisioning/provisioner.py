@@ -541,7 +541,7 @@ class KioskProvisioner:
         2. Compares against active kiosks in local DB.
         3. Purgues any orphan assets from JumpServer whose containers/records no longer exist.
         """
-        raw_assets = self.jms.client.get("/api/v1/assets/assets/")
+        raw_assets = self.jms.client.get("/api/v1/assets/assets/", limit=1000)
         all_assets = (
             raw_assets.get("results", [])
             if isinstance(raw_assets, dict)
@@ -556,6 +556,7 @@ class KioskProvisioner:
 
         managed_assets = []
         purged_assets = []
+        aligned_assets = []
         for asset in all_assets:
             if not isinstance(asset, dict):
                 continue
@@ -584,6 +585,7 @@ class KioskProvisioner:
                         target_jms_name, asset_id,
                     )
                     self.jms.client.patch(f"/api/v1/assets/assets/{asset_id}/", {"name": target_jms_name})
+                    aligned_assets.append({"id": asset_id, "previous_name": asset_name, "new_name": target_jms_name})
                     asset["name"] = target_jms_name
                     asset_name = target_jms_name
                 except Exception as patch_err:
@@ -608,6 +610,8 @@ class KioskProvisioner:
             "total_jms_assets": len(all_assets),
             "managed_jms_assets": len(managed_assets),
             "local_kiosks_count": len(active_kiosks),
+            "aligned_count": len(aligned_assets),
+            "aligned_assets": aligned_assets,
             "purged_count": len(purged_assets),
             "purged_assets": purged_assets,
         }

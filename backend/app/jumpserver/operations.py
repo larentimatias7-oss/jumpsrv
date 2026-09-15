@@ -206,6 +206,9 @@ class JumpServerOperations:
 
         return self.client.post("/api/v1/perms/asset-permissions/", payload)
 
+    def update_asset(self, asset_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        return self.client.update_asset(asset_id, data)
+
     def delete_asset(self, asset_id: str) -> bool:
         return self.client.delete_asset(asset_id)
 
