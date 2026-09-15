@@ -45,21 +45,34 @@ def verify_jumpserver_session(
     session_id = request.cookies.get("jms_sessionid")
     auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
 
+    from urllib.parse import urlparse
+    target_host = urlparse(cfg.base_url).hostname
+
     # 1. Check JumpServer session cookie first
     if session_id:
         try:
+            cookie_headers = {
+                "Cookie": f"jms_sessionid={session_id}",
+                "X-JMS-ORG": cfg.org_id,
+                "Accept": "application/json",
+            }
+
+            def _redirect_cookie_hook(req: httpx.Request) -> None:
+                if target_host and req.url.host == target_host:
+                    for k, v in cookie_headers.items():
+                        if k not in req.headers and v:
+                            req.headers[k] = v
+
             with httpx.Client(
                 base_url=cfg.base_url,
                 verify=cfg.verify_ssl,
                 timeout=cfg.timeout,
+                follow_redirects=True,
+                event_hooks={"request": [_redirect_cookie_hook]},
             ) as http:
                 resp = http.get(
                     "/api/v1/users/profile/",
-                    headers={
-                        "Cookie": f"jms_sessionid={session_id}",
-                        "X-JMS-ORG": cfg.org_id,
-                        "Accept": "application/json",
-                    },
+                    headers=cookie_headers,
                 )
                 if resp.status_code == 200:
                     data = resp.json()
@@ -90,18 +103,28 @@ def verify_jumpserver_session(
     # 2. Check Bearer / Token authorization header
     if auth_header and (auth_header.lower().startswith("bearer ") or auth_header.lower().startswith("token ")):
         try:
+            bearer_headers = {
+                "Authorization": auth_header,
+                "X-JMS-ORG": cfg.org_id,
+                "Accept": "application/json",
+            }
+
+            def _redirect_bearer_hook(req: httpx.Request) -> None:
+                if target_host and req.url.host == target_host:
+                    for k, v in bearer_headers.items():
+                        if k not in req.headers and v:
+                            req.headers[k] = v
+
             with httpx.Client(
                 base_url=cfg.base_url,
                 verify=cfg.verify_ssl,
                 timeout=cfg.timeout,
+                follow_redirects=True,
+                event_hooks={"request": [_redirect_bearer_hook]},
             ) as http:
                 resp = http.get(
                     "/api/v1/users/profile/",
-                    headers={
-                        "Authorization": auth_header,
-                        "X-JMS-ORG": cfg.org_id,
-                        "Accept": "application/json",
-                    },
+                    headers=bearer_headers,
                 )
                 if resp.status_code == 200:
                     data = resp.json()

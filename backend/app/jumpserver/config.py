@@ -17,7 +17,10 @@ class JumpServerSettings(BaseSettings):
     )
 
     base_url: str = Field(
-        default_factory=lambda: os.getenv("JMS_BASE_URL", os.getenv("JUMPSERVER_BASE_URL", "http://127.0.0.1:80")),
+        default_factory=lambda: os.getenv(
+            "JMS_BASE_URL",
+            os.getenv("JMS_URL", os.getenv("JUMPSERVER_BASE_URL", os.getenv("JUMPSERVER_URL", "http://127.0.0.1:80")))
+        ),
         description="Base URL of JumpServer",
     )
     key_id: str = Field(

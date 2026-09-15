@@ -25,7 +25,17 @@ class JumpServerClient:
         parsed = urlparse(self.config.base_url)
         if parsed.scheme not in ("http", "https"):
             raise ValueError(f"Invalid base_url scheme: {parsed.scheme}")
-        self._base = urlunparse((parsed.scheme, parsed.netloc, "", "", "", ""))
+        
+        # Normalize netloc: strip default port 80 for http, 443 for https
+        port = parsed.port
+        host = parsed.hostname or parsed.netloc
+        if (parsed.scheme == "http" and port in (80, None)) or (parsed.scheme == "https" and port in (443, None)):
+            netloc = host
+        else:
+            netloc = f"{host}:{port}" if port else host
+
+        self._base = f"{parsed.scheme}://{netloc}".rstrip("/")
+        self._target_host = host
         self._secret = self.config.load_secret()
         self._verify = str(self.config.ca_bundle) if self.config.ca_bundle else self.config.verify_ssl
         logger.debug("JumpServerClient initialized: base_url=%s, verify_ssl=%s", self._base, self._verify)
@@ -65,14 +75,31 @@ class JumpServerClient:
         if not user or not pwd:
             return None
         try:
-            with httpx.Client(base_url=self._base, verify=self._verify, timeout=self.config.timeout) as http:
+            auth_headers = {"X-JMS-ORG": self.config.org_id, "Accept": "application/json"}
+
+            def _redirect_token_hook(req: httpx.Request) -> None:
+                if getattr(self, "_target_host", None) and req.url.host == self._target_host:
+                    for k, v in auth_headers.items():
+                        if k not in req.headers and v:
+                            req.headers[k] = v
+
+            with httpx.Client(
+                base_url=self._base,
+                verify=self._verify,
+                timeout=self.config.timeout,
+                follow_redirects=True,
+                event_hooks={"request": [_redirect_token_hook]},
+            ) as http:
                 resp = http.post(
                     "/api/v1/authentication/auth/",
                     json={"username": user, "password": pwd},
-                    headers={"X-JMS-ORG": self.config.org_id, "Accept": "application/json"},
+                    headers=auth_headers,
                 )
                 if resp.status_code in (200, 201):
-                    data = resp.json()
+                    try:
+                        data = resp.json()
+                    except Exception:
+                        data = {}
                     tok = data.get("token") or data.get("access_token") or data.get("keyword")
                     if tok:
                         self._token = tok
@@ -124,22 +151,44 @@ class JumpServerClient:
         last_exc: Exception | None = None
         for attempt in range(1, self.config.max_retries + 1):
             try:
+                headers = self._headers(method, signed_path)
+
+                def _redirect_hook(r: httpx.Request) -> None:
+                    if getattr(self, "_target_host", None) and r.url.host == self._target_host:
+                        for k, v in headers.items():
+                            if k not in r.headers and v:
+                                r.headers[k] = v
+
                 with httpx.Client(
                     base_url=self._base,
                     verify=self._verify,
                     timeout=self.config.timeout,
+                    follow_redirects=True,
+                    event_hooks={"request": [_redirect_hook]},
                     headers={
                         "Accept": "application/json",
                         "X-JMS-ORG": self.config.org_id,
                     },
                 ) as http:
-                    headers = self._headers(method, signed_path)
                     resp = http.request(
                         method,
                         signed_path,
                         headers=headers,
                         json=json_body,
                     )
+
+                # If redirected on the same host (e.g. 307 http -> https), normalize base URL for future requests
+                if resp.history and getattr(self, "_target_host", None) and resp.url.host == self._target_host:
+                    scheme = resp.url.scheme
+                    port = resp.url.port
+                    host = resp.url.host
+                    if (scheme == "https" and port in (443, None)) or (scheme == "http" and port in (80, None)):
+                        new_base = f"{scheme}://{host}"
+                    else:
+                        new_base = f"{scheme}://{host}:{port}" if port else f"{scheme}://{host}"
+                    if new_base != self._base:
+                        logger.info("Auto-updating JumpServer base URL after redirect: %s -> %s", self._base, new_base)
+                        self._base = new_base
 
                 # 1. Check for transient gateway errors (502, 503, 504)
                 if resp.status_code in (502, 503, 504) and attempt < self.config.max_retries:
@@ -192,7 +241,14 @@ class JumpServerClient:
             )
         if resp.status_code == 204 or not resp.content:
             return {}
-        return resp.json()
+        try:
+            return resp.json()
+        except Exception as e:
+            logger.warning(
+                "%s %s: Non-JSON response (%s) with status %d: %s",
+                method, path, e, resp.status_code, resp.text[:200]
+            )
+            return {}
 
     def get(self, path: str, **params: Any) -> Any:
         return self._request("GET", path, params=params)
@@ -345,9 +401,13 @@ class JumpServerClient:
         try:
             res = self.get("/api/v1/applications/applications/", **params)
             if isinstance(res, list):
-                return res
+                return [item for item in res if isinstance(item, dict)]
             if isinstance(res, dict):
-                return res.get("results", [])
+                results = res.get("results", [])
+                if isinstance(results, list):
+                    return [item for item in results if isinstance(item, dict)]
+                if res.get("id") or res.get("name"):
+                    return [res]
         except Exception as e:
             logger.warning("Failed to list web applications from JumpServer: %s", e)
         return []
@@ -379,7 +439,10 @@ class JumpServerClient:
             },
             "comment": comment,
         }
-        return self.post("/api/v1/applications/applications/", payload)
+        res = self.post("/api/v1/applications/applications/", payload)
+        if isinstance(res, dict):
+            return res
+        return {}
 
     def ensure_web_application_asset(
         self,
@@ -389,18 +452,26 @@ class JumpServerClient:
         """
         Idempotently ensure that the Kiosk Manager web application exists in JumpServer.
         If already present, returns the existing record. If missing, registers it.
+        Validates 200/201 responses and gracefully handles empty or non-dict payloads.
         """
         url = public_url or getattr(self.config, "public_url", "http://172.30.20.62:8000")
         try:
             existing = self.get_web_application_by_name(name)
-            if existing:
-                logger.info("JumpServer Web Application '%s' already registered (idempotent)", name)
+            if existing and (existing.get("id") or existing.get("name")):
+                logger.info("JumpServer Web Application '%s' already registered (idempotent): id=%s", name, existing.get("id"))
                 return existing
 
             logger.info("Registering JumpServer Web Application '%s' with URL %s", name, url)
             created = self.create_web_application(name=name, url=url)
-            logger.info("JumpServer Web Application '%s' created successfully: id=%s", name, created.get("id"))
-            return created
+            if isinstance(created, dict) and (created.get("id") or created.get("name")):
+                logger.info("JumpServer Web Application '%s' created successfully: id=%s", name, created.get("id"))
+                return created
+            elif isinstance(created, dict):
+                logger.info("JumpServer Web Application '%s' registration completed: %s", name, created)
+                return created
+            else:
+                logger.warning("JumpServer Web Application '%s' registration returned unexpected response type %s", name, type(created))
+                return {}
         except Exception as e:
             logger.warning("Failed to ensure Web Application '%s' in JumpServer: %s", name, e)
             return {}
