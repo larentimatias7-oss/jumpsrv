@@ -134,6 +134,10 @@ JMS_ORG_ID=00000000-0000-0000-0000-000000000002
 JMS_KEY_ID=
 JMS_SECRET_KEY=
 
+# Configuración de Nodos de Activos y Herencia RBAC (Luna)
+JMS_DEFAULT_NODE_NAME="SWITCHES ROSARIO"
+# JMS_DEFAULT_NODE_ID=8efe99ea-dee5-4ba0-9ad2-1978d91e8f65
+
 # IP del Host para registro de activos RDP en JumpServer
 KIOSK_HOST_IP=<IP_LAN_HOST>
 KIOSK_PORT_RANGE_START=33891
@@ -144,7 +148,13 @@ PORTAL_ADMIN_USER=admin
 PORTAL_ADMIN_PASSWORD=admin
 ```
 
-### 3.4. Inicialización y Arranque
+### 3.4. Herencia de Permisos RBAC en JumpServer Luna
+Para habilitar que los operadores accedan automáticamente a los quioscos creados:
+1. En la consola de JumpServer, navegue a **Assets > Asset Permissions** (Permisos de Activos).
+2. Cree una regla de autorización asignando los Nodos correspondientes (por ejemplo, nodo `/SWITCHES ROSARIO`) a los grupos de usuarios autorizados (por ejemplo, grupo `Switch Admins Rosario`).
+3. Todo quiosco aprovisionado o asignado a esa categoría en **Kiosk Manager** se inyectará directamente con el UUID del nodo en `nodes: [node_uuid]`. De esta forma, el quiosco aparecerá de manera inmediata en la interfaz Luna de los usuarios del grupo con los permisos delegados en la carpeta, sin requerir asignación manual de permisos por dispositivo.
+
+### 3.5. Inicialización y Arranque
 ```bash
 docker compose pull
 docker compose up -d

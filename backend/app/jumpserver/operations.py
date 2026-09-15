@@ -68,9 +68,16 @@ class JumpServerOperations:
         return None
 
     def resolve_node_id(self, node_id: str | None = None) -> str | None:
-        """Validate and resolve node UUID. If empty/default/invalid, dynamically look up default node."""
-        if node_id and node_id not in ("", "/DEFAULT", "DEFAULT") and is_valid_uuid(node_id):
+        """Validate and resolve node UUID. If node name is passed, ensure it via client. If empty/default, look up default node."""
+        if node_id and is_valid_uuid(node_id):
             return str(node_id)
+        if node_id and node_id not in ("", "/DEFAULT", "DEFAULT"):
+            try:
+                ensured = self.client.ensure_node(node_id)
+                if ensured and is_valid_uuid(ensured):
+                    return str(ensured)
+            except Exception as e:
+                logger.warning(f"Failed to ensure node by name '{node_id}': {e}")
         return self.get_default_node_id()
 
     def resolve_platform_id(self, platform: int | str | None = 5) -> int:
@@ -113,6 +120,7 @@ class JumpServerOperations:
         platform: int | str = 5,
         platform_id: int | None = None,
         comment: str = "Managed by JumpServer Kiosk Manager",
+        endpoint: str = "/api/v1/assets/hosts/",
         **kwargs: Any,
     ) -> dict[str, Any]:
         actual_platform = self.resolve_platform_id(platform_id if platform_id is not None else platform)
@@ -130,7 +138,11 @@ class JumpServerOperations:
         if resolved_node and is_valid_uuid(resolved_node):
             payload["nodes"] = [str(resolved_node)]
 
-        return self.client.post("/api/v1/assets/hosts/", payload)
+        return self.client.post(endpoint, payload)
+
+    def create_asset(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create asset via generic /api/v1/assets/assets/ endpoint."""
+        return self.client.post("/api/v1/assets/assets/", payload)
 
     def create_account(
         self,

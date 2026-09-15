@@ -128,3 +128,109 @@ class JumpServerClient:
 
     def delete(self, path: str) -> Any:
         return self._request("DELETE", path)
+
+    def list_nodes(self) -> list[dict[str, Any]]:
+        """Fetch all asset nodes from /api/v1/assets/nodes/."""
+        res = self.get("/api/v1/assets/nodes/")
+        if isinstance(res, list):
+            return res
+        if isinstance(res, dict):
+            return res.get("results", [])
+        return []
+
+    def get_node_by_name(self, name: str) -> dict[str, Any] | None:
+        """Find a node matching `name` case-insensitively by its value or name."""
+        if not name:
+            return None
+        target = name.strip().lower()
+        nodes = self.list_nodes()
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            val = str(node.get("value", "")).strip().lower()
+            nm = str(node.get("name", "")).strip().lower()
+            if val == target or nm == target:
+                return node
+        return None
+
+    def create_node(self, value: str, parent_id: str | None = None) -> dict[str, Any]:
+        """Create a new asset node via POST /api/v1/assets/nodes/."""
+        clean_value = value.strip()
+        payload: dict[str, Any] = {"value": clean_value}
+
+        if parent_id:
+            payload["parent"] = parent_id
+        else:
+            # Resolve default root node if available
+            root_id = None
+            nodes = self.list_nodes()
+            for node in nodes:
+                if isinstance(node, dict):
+                    v = str(node.get("value", "")).strip().upper()
+                    n = str(node.get("name", "")).strip().upper()
+                    if v == "DEFAULT" or n == "DEFAULT" or v == "/" or n == "/":
+                        root_id = node.get("id")
+                        break
+            if not root_id and nodes and isinstance(nodes[0], dict):
+                for node in nodes:
+                    if isinstance(node, dict) and not node.get("parent"):
+                        root_id = node.get("id")
+                        break
+                if not root_id:
+                    root_id = nodes[0].get("id")
+            if root_id:
+                payload["parent"] = str(root_id)
+
+        return self.post("/api/v1/assets/nodes/", payload)
+
+    def ensure_node(self, name: str) -> str:
+        """Verify if node exists by name; return its UUID. If missing, create dynamically and return UUID."""
+        if not name or not name.strip():
+            name = getattr(self.config, "default_node_name", "SWITCHES ROSARIO")
+
+        clean_name = name.strip()
+
+        # Check static default node id if configured and names match
+        configured_default_name = getattr(self.config, "default_node_name", "SWITCHES ROSARIO")
+        configured_default_id = getattr(self.config, "default_node_id", None)
+        if configured_default_id and clean_name.lower() == configured_default_name.strip().lower():
+            return str(configured_default_id)
+
+        # 1. Look for existing node
+        existing = self.get_node_by_name(clean_name)
+        if existing and existing.get("id"):
+            return str(existing["id"])
+
+        # 2. Try creating dynamically
+        try:
+            created = self.create_node(value=clean_name)
+            node_id = created.get("id")
+            if node_id:
+                return str(node_id)
+        except JumpServerValidationError as ve:
+            logger.info("Node creation returned validation error, re-checking nodes: %s", ve)
+            existing = self.get_node_by_name(clean_name)
+            if existing and existing.get("id"):
+                return str(existing["id"])
+            raise
+        except Exception as e:
+            logger.warning("Failed to create node '%s', retrying lookup: %s", clean_name, e)
+            existing = self.get_node_by_name(clean_name)
+            if existing and existing.get("id"):
+                return str(existing["id"])
+            raise
+
+        raise JumpServerError(f"Unable to ensure node with name '{clean_name}'")
+
+    def delete_node(self, node_id: str) -> bool:
+        """Safely delete node if it has no active assets; log warning if deletion fails."""
+        try:
+            self.delete(f"/api/v1/assets/nodes/{node_id}/")
+            return True
+        except Exception as e:
+            logger.warning("Could not delete JumpServer node %s (may contain assets or insufficient permissions): %s", node_id, e)
+            return False
+
+    def create_asset(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create asset in JumpServer via /api/v1/assets/assets/."""
+        return self.post("/api/v1/assets/assets/", payload)

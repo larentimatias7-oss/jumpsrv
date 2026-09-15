@@ -78,3 +78,19 @@ Para lograr esto de forma segura, escalable y con mínimo impacto en recursos (e
 - **Restricción W3C Secure Context:** Para habilitar la API `navigator.clipboard` que permite copiar y pegar credenciales y comandos entre la estación de trabajo y la sesión remota en JumpServer Luna, los navegadores modernos exigen estrictamente una conexión segura **HTTPS** (o `localhost`). En conexiones HTTP no seguras, el navegador bloquea el acceso (`navigator.clipboard api not found`).
 - **Soporte de Conectividad `JMS_VERIFY_SSL`:** Al desplegar JumpServer en HTTPS con certificados autofirmados con SAN IP, el cliente HTTP de `kiosk-manager` soporta la bandera `JMS_VERIFY_SSL=false` (o montaje de CA bundle corporativo mediante `JMS_CA_BUNDLE`), evitando fallos por `SSLCertVerificationError` durante el aprovisionamiento y sincronización de activos.
 
+### G. Sincronización Dinámica de Categorías y Árbol de Nodos JumpServer (Herencia RBAC)
+- **Mapeo Dinámico Categorías <-> Nodos (`/api/v1/assets/nodes/`):**
+  - Cada categoría gestionada en `kiosk-manager` (ej. `SWITCHES ROSARIO`, `SERVERS INFRA`, `SERVERS BACKUP`) se sincroniza bidireccionalmente con el árbol de Nodos organizativos de JumpServer.
+  - Al aprovisionar un quiosco, el backend resuelve o asegura el nodo homólogo en JumpServer (`ensure_node`) y envía el UUID del nodo en el payload del activo (`nodes: [node_uuid]`).
+- **Herencia Automática de Permisos RBAC en Luna:**
+  - En JumpServer, los permisos de autorización delegados sobre una carpeta/nodo se heredan automáticamente por todos los activos contenidos en dicho nodo.
+  - Al inyectar el nodo explícito en lugar de dejar el activo huérfano en `DEFAULT`, los grupos de usuarios autorizados (por ejemplo, `Switch Admins Rosario`) obtienen visibilidad y capacidad de conexión inmediata al quiosco en Luna sin requerir asignación manual de permisos por dispositivo.
+- **Ciclo de Vida Idempotente:**
+  - **Creación:** Se asegura el nodo en JumpServer vía `POST /api/v1/assets/nodes/` antes de persistir la categoría local.
+  - **Renombrado:** Modificaciones en categorías se propagan mediante `PATCH /api/v1/assets/nodes/{id}/` y actualizan los quioscos vinculados.
+  - **Eliminación Segura:** Antes de remover una categoría con activos asociados, el sistema reasigna los dispositivos huérfanos al nodo por defecto (`JMS_DEFAULT_NODE_NAME`), evitando la pérdida de trazabilidad.
+  - **Sincronización Inicial:** El endpoint `POST /api/categories/sync-jms-nodes` importa nodos preexistentes en JumpServer y asegura que el catálogo local y remoto permanezcan unificados.
+- **Variables de Configuración:**
+  - `JMS_DEFAULT_NODE_NAME`: Nombre del nodo de respaldo por defecto (por defecto: `"SWITCHES ROSARIO"`).
+  - `JMS_DEFAULT_NODE_ID`: UUID opcional para fijar estáticamente el nodo de destino.
+

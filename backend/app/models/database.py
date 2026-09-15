@@ -39,11 +39,26 @@ class KioskModel(Base):
     jms_account_id = Column(String(64), nullable=True)
     jms_permission_id = Column(String(64), nullable=True)
     jms_node_name = Column(String(128), nullable=True)
+    jms_node_id = Column(String(64), nullable=True)
+    category_id = Column(String(36), nullable=True)
+    category_name = Column(String(64), nullable=True)
     
     # Status: PENDING, RUNNING, STOPPED, FAILED, DEGRADED
     status = Column(String(32), default="PENDING", nullable=False)
     last_error = Column(Text, nullable=True)
     
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class CategoryModel(Base):
+    __tablename__ = "categories"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(64), unique=True, nullable=False, index=True)
+    description = Column(String(255), nullable=True)
+    jms_node_id = Column(String(64), nullable=True)
+    icon = Column(String(32), default="📁")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

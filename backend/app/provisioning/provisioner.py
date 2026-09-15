@@ -8,7 +8,7 @@ import logging
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
-from ..models.database import KioskModel, init_db
+from ..models.database import KioskModel, CategoryModel, init_db
 from ..docker_runtime.client import DockerRuntime
 from ..jumpserver.client import JumpServerClient
 from ..jumpserver.operations import JumpServerOperations
@@ -26,6 +26,8 @@ class KioskCreateRequest(BaseModel):
     target_url: Optional[str] = None
     node_id: Optional[str] = None
     node_name: Optional[str] = None
+    category_id: Optional[str] = None
+    category_name: Optional[str] = None
     user_group_ids: Optional[List[str]] = None
 
 
@@ -33,6 +35,8 @@ class KioskUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=50)
     device_type: Optional[str] = None
     target_url: Optional[str] = None
+    category_id: Optional[str] = None
+    category_name: Optional[str] = None
 
 
 DEFAULT_KIOSK_IMAGE = os.getenv("KIOSK_DOCKER_IMAGE", "ghcr.io/larentimatias7-oss/jumpsrv/pam-web-kiosk:latest")
@@ -105,6 +109,10 @@ class KioskProvisioner:
                     "rdp_username": k.rdp_username,
                     "jms_asset_id": k.jms_asset_id,
                     "jms_account_id": k.jms_account_id,
+                    "jms_node_name": k.jms_node_name,
+                    "jms_node_id": k.jms_node_id,
+                    "category_id": k.category_id,
+                    "category_name": k.category_name or k.jms_node_name,
                     "status": k.status,
                     "container_status": c_status["status"],
                     "container_health": c_status["health"],
@@ -126,7 +134,25 @@ class KioskProvisioner:
             if existing:
                 raise ValueError(f"Kiosk with name {clean_name} already exists.")
 
-            # 2. Allocate port & RDP credentials
+            # 2. Resolve Category & JumpServer Node UUID
+            cat_name = req.category_name or req.node_name
+            cat_id = req.category_id
+            if cat_id and not cat_name:
+                cat_obj = session.query(CategoryModel).filter(CategoryModel.id == cat_id).first()
+                if cat_obj:
+                    cat_name = cat_obj.name
+
+            if not cat_name:
+                cat_name = getattr(self.jms.client.config, "default_node_name", "SWITCHES ROSARIO")
+
+            resolved_node_id = req.node_id
+            if not resolved_node_id:
+                try:
+                    resolved_node_id = self.jms.client.ensure_node(cat_name)
+                except Exception as e:
+                    logger.warning("Could not ensure JumpServer node for '%s': %s", cat_name, e)
+
+            # 3. Allocate port & RDP credentials
             port = self._allocate_port(session)
             sanitized_suffix = "".join(ch if ch.isalnum() else "_" for ch in clean_name.lower())
             rdp_user = f"kiosk_{sanitized_suffix}"
@@ -134,7 +160,7 @@ class KioskProvisioner:
             container_name = f"kiosk-{sanitized_suffix}"
             volume_name = f"rdp_{sanitized_suffix}"
 
-            # 3. Create record in PENDING
+            # 4. Create record in PENDING
             kiosk = KioskModel(
                 name=clean_name,
                 device_type=req.device_type,
@@ -146,6 +172,10 @@ class KioskProvisioner:
                 rdp_username=rdp_user,
                 container_name=container_name,
                 volume_name=volume_name,
+                category_id=cat_id,
+                category_name=cat_name,
+                jms_node_name=cat_name,
+                jms_node_id=resolved_node_id,
                 status="PENDING",
             )
             session.add(kiosk)
@@ -156,21 +186,16 @@ class KioskProvisioner:
         created_resources: List[tuple[str, Any]] = []
 
         try:
-            # 4. Create volume in Docker
+            # 5. Create volume in Docker
             vol = self.docker.create_volume(volume_name, kiosk_id)
             created_resources.append(("volume", volume_name))
 
-            # 5. Register Kiosk container (stopped / on-demand)
-            # Volume vol_rdp_<asset_id> is already created above and mounted to /home/kiosk/.config/chromium
-            # Container remains stopped until Dispatcher receives first connection
-            pass
-
-            # 6. JumpServer: Register RDP Asset
+            # 6. JumpServer: Register RDP Asset with Node UUID
             jms_asset = self.jms.create_rdp_asset(
                 name=clean_name,
                 ip=self.host_ip,
                 port=port,
-                node_id=req.node_id,
+                node_id=resolved_node_id,
                 platform_id=5,
             )
             jms_asset_id = jms_asset.get("id")
@@ -309,6 +334,32 @@ class KioskProvisioner:
                         k.target_ip = parsed.hostname
                 except Exception:
                     pass
+
+            if req.category_name or req.category_id:
+                new_cat_name = req.category_name
+                new_cat_id = req.category_id
+                if new_cat_id and not new_cat_name:
+                    c = session.query(CategoryModel).filter(CategoryModel.id == new_cat_id).first()
+                    if c:
+                        new_cat_name = c.name
+
+                if new_cat_name:
+                    new_node_id = None
+                    try:
+                        new_node_id = self.jms.client.ensure_node(new_cat_name)
+                    except Exception as e:
+                        logger.warning("Could not ensure node '%s' on update: %s", new_cat_name, e)
+
+                    k.category_id = new_cat_id
+                    k.category_name = new_cat_name
+                    k.jms_node_name = new_cat_name
+                    if new_node_id:
+                        k.jms_node_id = new_node_id
+                        if k.jms_asset_id:
+                            try:
+                                self.jms.client.patch(f"/api/v1/assets/assets/{k.jms_asset_id}/", {"nodes": [new_node_id]})
+                            except Exception as patch_err:
+                                logger.warning("Could not update asset node in JumpServer: %s", patch_err)
 
             session.commit()
 

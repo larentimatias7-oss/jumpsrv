@@ -49,6 +49,14 @@ class JumpServerSettings(BaseSettings):
     ca_bundle: Path | None = Field(default=None, description="Custom CA bundle")
     timeout: float = Field(default=30.0, description="HTTP timeout seconds")
     max_retries: int = Field(default=3, description="Max HTTP retries")
+    default_node_name: str = Field(
+        default_factory=lambda: os.getenv("JMS_DEFAULT_NODE_NAME", os.getenv("JUMPSERVER_DEFAULT_NODE_NAME", "SWITCHES ROSARIO")),
+        description="Default JumpServer node name for grouping kiosk assets",
+    )
+    default_node_id: str | None = Field(
+        default_factory=lambda: os.getenv("JMS_DEFAULT_NODE_ID", os.getenv("JUMPSERVER_DEFAULT_NODE_ID", None)),
+        description="Optional static JumpServer node UUID",
+    )
 
     @field_validator("verify_ssl", mode="before")
     @classmethod

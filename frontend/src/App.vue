@@ -133,6 +133,7 @@ const form = ref({
   target_protocol: 'http',
   target_port: 80,
   target_url: '',
+  category_name: 'SWITCHES ROSARIO',
   node_id: ''
 })
 
@@ -140,7 +141,26 @@ const editForm = ref({
   id: '',
   name: '',
   device_type: 'generic',
-  target_url: ''
+  target_url: '',
+  category_name: 'SWITCHES ROSARIO'
+})
+
+// Categories & JumpServer Dynamic Node Catalog
+const categories = ref([])
+const loadingCategories = ref(false)
+const syncingJms = ref(false)
+
+const availableCategories = computed(() => {
+  if (categories.value && categories.value.length > 0) {
+    return categories.value
+  }
+  return [
+    { name: 'SWITCHES ROSARIO', icon: '⚡' },
+    { name: 'SERVERS INFRA', icon: '🖥️' },
+    { name: 'SERVERS BACKUP', icon: '💾' },
+    { name: 'WEB MANAGEMENT', icon: '🌐' },
+    { name: 'FIREWALLS / UTM', icon: '🛡️' }
+  ]
 })
 
 // Device Types Catalog
@@ -208,6 +228,7 @@ const createKiosk = async () => {
         target_protocol: 'http',
         target_port: 80,
         target_url: '',
+        category_name: categories.value.length ? categories.value[0].name : 'SWITCHES ROSARIO',
         node_id: ''
       }
       fetchKiosks()
@@ -224,7 +245,8 @@ const openEditModal = (kiosk) => {
     id: kiosk.id,
     name: kiosk.name,
     device_type: kiosk.device_type || 'generic',
-    target_url: kiosk.target_url
+    target_url: kiosk.target_url,
+    category_name: kiosk.category_name || kiosk.jms_node_name || (categories.value.length ? categories.value[0].name : 'SWITCHES ROSARIO')
   }
   editUrlTestResult.value = null
   showEditModal.value = true
@@ -238,7 +260,8 @@ const saveKioskEdit = async () => {
       body: JSON.stringify({
         name: editForm.value.name,
         device_type: editForm.value.device_type,
-        target_url: editForm.value.target_url
+        target_url: editForm.value.target_url,
+        category_name: editForm.value.category_name
       })
     })
     const data = await res.json()
@@ -251,6 +274,45 @@ const saveKioskEdit = async () => {
     }
   } catch (err) {
     showToast('Error de red al guardar cambios', 'error')
+  }
+}
+
+const fetchCategories = async () => {
+  loadingCategories.value = true
+  try {
+    const res = await fetch('/api/categories', { headers: getHeaders() })
+    if (res.ok) {
+      const data = await res.json()
+      categories.value = data
+      if (data.length > 0 && !form.value.category_name) {
+        form.value.category_name = data[0].name
+      }
+    }
+  } catch (err) {
+    console.error('Error al cargar categorías:', err)
+  } finally {
+    loadingCategories.value = false
+  }
+}
+
+const syncJmsNodes = async () => {
+  syncingJms.value = true
+  try {
+    const res = await fetch('/api/categories/sync-jms-nodes', {
+      method: 'POST',
+      headers: getHeaders()
+    })
+    if (res.ok) {
+      const data = await res.json()
+      showToast(`Nodos sincronizados con JumpServer (${data.total_categories} categorías activas)`)
+      await fetchCategories()
+    } else {
+      showToast('Error al sincronizar categorías con JumpServer', 'error')
+    }
+  } catch (err) {
+    showToast('Error de conexión al sincronizar nodos', 'error')
+  } finally {
+    syncingJms.value = false
   }
 }
 
@@ -390,7 +452,9 @@ const filteredKiosks = computed(() => {
       k.name.toLowerCase().includes(q) ||
       (k.target_url && k.target_url.toLowerCase().includes(q)) ||
       (k.target_ip && k.target_ip.toLowerCase().includes(q)) ||
-      (k.rdp_username && k.rdp_username.toLowerCase().includes(q))
+      (k.rdp_username && k.rdp_username.toLowerCase().includes(q)) ||
+      (k.category_name && k.category_name.toLowerCase().includes(q)) ||
+      (k.jms_node_name && k.jms_node_name.toLowerCase().includes(q))
 
     // Device type filter
     const matchType = selectedTypeFilter.value === 'all' || k.device_type === selectedTypeFilter.value
@@ -403,6 +467,8 @@ const filteredKiosks = computed(() => {
     // Category filter
     const deviceDef = deviceTypes.find(d => d.id === k.device_type)
     const matchCategory = selectedCategoryFilter.value === 'all' ||
+      (k.category_name && k.category_name.toLowerCase() === selectedCategoryFilter.value.toLowerCase()) ||
+      (k.jms_node_name && k.jms_node_name.toLowerCase() === selectedCategoryFilter.value.toLowerCase()) ||
       (deviceDef && deviceDef.category === selectedCategoryFilter.value)
 
     return matchSearch && matchType && matchStatus && matchCategory
@@ -600,6 +666,7 @@ const onSystemThemeChange = (e) => {
 onMounted(() => {
   initTheme()
   fetchKiosks()
+  fetchCategories()
   fetchSettings()
   resetAutoRefreshTimer()
   window.addEventListener('keydown', handleKeydown)
@@ -1178,6 +1245,7 @@ onUnmounted(() => {
                     <input type="checkbox" />
                   </th>
                   <th>Activos</th>
+                  <th>Categoría / Nodo JMS</th>
                   <th>Plataforma</th>
                   <th>Conexión</th>
                   <th>Estado Contenedor</th>
@@ -1187,7 +1255,7 @@ onUnmounted(() => {
               </thead>
               <tbody>
                 <tr v-if="filteredKiosks.length === 0 && !loading">
-                  <td colspan="7" class="empty-cell">
+                  <td colspan="8" class="empty-cell">
                     <div class="empty-state-box">
                       <span class="empty-icon">🔍</span>
                       <p class="empty-text">No se encontraron quioscos para los filtros seleccionados.</p>
@@ -1211,6 +1279,15 @@ onUnmounted(() => {
                         <span class="rdp-user">{{ k.rdp_username }}</span>
                         <span v-if="k.jms_asset_id" class="asset-id-tag">ID: {{ k.jms_asset_id.substring(0, 8) }}</span>
                       </div>
+                    </div>
+                  </td>
+
+                  <!-- Categoría / Nodo JMS (RBAC Badge) -->
+                  <td class="cell-category">
+                    <div class="category-node-badge" :title="'Nodo JumpServer: ' + (k.category_name || k.jms_node_name || 'SWITCHES ROSARIO') + ' (Herencia de permisos RBAC en Luna)'">
+                      <span class="category-icon">📁</span>
+                      <span class="category-label">{{ k.category_name || k.jms_node_name || 'SWITCHES ROSARIO' }}</span>
+                      <span class="rbac-tag" title="Herencia automática de permisos RBAC">RBAC</span>
                     </div>
                   </td>
 
@@ -1414,8 +1491,24 @@ onUnmounted(() => {
           </div>
 
           <div class="form-item">
-            <label class="form-label">Nodo en JumpServer (Opcional)</label>
-            <input v-model="form.node_id" placeholder="Dejar vacío para el nodo raíz (/DEFAULT)" />
+            <div class="category-label-row">
+              <label class="form-label required">Categoría / Nodo JumpServer (RBAC)</label>
+              <button type="button" class="btn-sync-node" @click="syncJmsNodes" :disabled="syncingJms" title="Sincronizar categorías con el árbol de activos en JumpServer">
+                <span v-if="syncingJms">⏳ Sincronizando...</span>
+                <span v-else>🔄 Sincronizar Nodos JMS</span>
+              </button>
+            </div>
+            <select v-model="form.category_name" class="category-select" required>
+              <option v-for="c in availableCategories" :key="c.name" :value="c.name">
+                {{ c.icon || '📁' }} {{ c.name }}
+              </option>
+            </select>
+            <div class="rbac-inheritance-hint" v-if="form.category_name">
+              <span class="rbac-badge">
+                <span class="rbac-icon">🛡️</span> Herencia RBAC Luna: <strong>{{ form.category_name }}</strong>
+              </span>
+              <span class="rbac-text">El dispositivo se integrará en este nodo de JumpServer. Los usuarios y grupos autorizados heredarán el acceso automáticamente.</span>
+            </div>
           </div>
 
           <div class="modal-foot">
@@ -1450,6 +1543,27 @@ onUnmounted(() => {
                 {{ d.icon }} {{ d.label }}
               </option>
             </select>
+          </div>
+
+          <div class="form-item">
+            <div class="category-label-row">
+              <label class="form-label required">Categoría / Nodo JumpServer (RBAC)</label>
+              <button type="button" class="btn-sync-node" @click="syncJmsNodes" :disabled="syncingJms" title="Sincronizar categorías con el árbol de activos en JumpServer">
+                <span v-if="syncingJms">⏳ Sincronizando...</span>
+                <span v-else>🔄 Sincronizar</span>
+              </button>
+            </div>
+            <select v-model="editForm.category_name" class="category-select" required>
+              <option v-for="c in availableCategories" :key="c.name" :value="c.name">
+                {{ c.icon || '📁' }} {{ c.name }}
+              </option>
+            </select>
+            <div class="rbac-inheritance-hint" v-if="editForm.category_name">
+              <span class="rbac-badge">
+                <span class="rbac-icon">🛡️</span> Herencia RBAC Luna: <strong>{{ editForm.category_name }}</strong>
+              </span>
+              <span class="rbac-text">Al guardar, el activo se moverá a este nodo en JumpServer y heredará sus permisos.</span>
+            </div>
           </div>
 
           <div class="form-item">
