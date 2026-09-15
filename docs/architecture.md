@@ -121,3 +121,10 @@ Para garantizar estabilidad de nivel producción en despliegues con alto volumen
      ```
    - Esto permite que los auditores identifiquen de inmediato el origen del quiosco efímero, su categoría y el operador responsable tanto en el inventario de activos como en los registros de auditoría y grabaciones de sesión de JumpServer.
 
+5. **Reconciliación Automática en Background (`auto_reconcile_loop`):**
+   - Tarea asíncrona en segundo plano iniciada en FastAPI (`main.py`) que ejecuta de forma autónoma la detección y purga de activos huérfanos cada `JMS_RECONCILE_INTERVAL_HOURS` horas (por defecto 12h, ajustable o desactivable con `0`), garantizando que JumpServer permanezca limpio sin depender exclusivamente de tareas cron en el host.
+
+6. **Detención Manual de Sesión y Liberación Instantánea de RAM (`stop_session`):**
+   - Endpoint `POST /api/kiosks/{id}/stop` y botón de acción en la interfaz web para que los operadores del NOC finalicen una sesión activa y liberen de inmediato los 768 MB de RAM del host, complementando las políticas automatizadas de inactividad.
+
+

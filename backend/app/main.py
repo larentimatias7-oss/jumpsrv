@@ -31,8 +31,31 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api")
 
 
+async def auto_reconcile_loop():
+    """Periodic background task that purges orphan JumpServer assets."""
+    from .api.routes import provisioner
+    import asyncio
+    interval_hours = float(os.getenv("JMS_RECONCILE_INTERVAL_HOURS", "12"))
+    if interval_hours <= 0:
+        logger.info("Auto-reconciliation background task is disabled (interval <= 0)")
+        return
+    interval_seconds = interval_hours * 3600
+    logger.info("Starting auto-reconciliation background task (interval: %.1fh)", interval_hours)
+    while True:
+        try:
+            await asyncio.sleep(interval_seconds)
+            logger.info("Executing scheduled JumpServer assets reconciliation...")
+            res = provisioner.reconcile_with_jumpserver()
+            logger.info("Auto-reconciliation complete: %s orphans purged", res.get("purged_count", 0))
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.warning("Error in auto-reconciliation background task: %s", e)
+
+
 @app.on_event("startup")
 async def startup_event():
+    import asyncio
     from .provisioning.provisioner import detect_host_ip
     from .config import get_lifecycle_settings
     db_factory = init_db()
@@ -52,6 +75,9 @@ async def startup_event():
         for k in kiosks:
             if k.rdp_port:
                 await dispatcher.start_listening_for_kiosk(k.id, host_ip, k.rdp_port)
+
+    # Launch periodic orphan garbage collection
+    asyncio.create_task(auto_reconcile_loop())
 
 
 @app.get("/health")

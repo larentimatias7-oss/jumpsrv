@@ -316,6 +316,50 @@ const syncJmsNodes = async () => {
   }
 }
 
+const reconcilingJms = ref(false)
+
+const reconcileJmsAssets = async () => {
+  reconcilingJms.value = true
+  try {
+    const res = await fetch('/api/kiosks/reconcile-jms', {
+      method: 'POST',
+      headers: getHeaders()
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.purged_count > 0) {
+        showToast(`Reconciliación exitosa: ${data.purged_count} activos huérfanos purgados en JumpServer`)
+      } else {
+        showToast(`Reconciliación completa: inventario limpio sin activos huérfanos (${data.managed_jms_assets} activos JMS)`)
+      }
+      await fetchKiosks()
+    } else {
+      showToast('Error al ejecutar la reconciliación con JumpServer', 'error')
+    }
+  } catch (err) {
+    showToast('Error de red al reconciliar activos con JumpServer', 'error')
+  } finally {
+    reconcilingJms.value = false
+  }
+}
+
+const stopKioskSession = async (kiosk) => {
+  try {
+    const res = await fetch(`/api/kiosks/${kiosk.id}/stop`, {
+      method: 'POST',
+      headers: getHeaders()
+    })
+    if (res.ok) {
+      showToast(`Sesión detenida para "${kiosk.name}". 768 MB RAM liberados.`)
+      fetchKiosks(false)
+    } else {
+      showToast('No se pudo detener la sesión del quiosco', 'error')
+    }
+  } catch (err) {
+    showToast('Error de red al detener la sesión', 'error')
+  }
+}
+
 const testConnectivity = async (kiosk) => {
   urlTestResults.value[kiosk.id] = { testing: true }
   try {
@@ -1135,6 +1179,22 @@ onUnmounted(() => {
                 Refrescar
               </button>
 
+              <!-- Reconciliar JMS Button -->
+              <button 
+                class="jms-btn jms-btn-default btn-reconcile" 
+                @click="reconcileJmsAssets" 
+                :disabled="reconcilingJms"
+                title="Purgar activos huérfanos en JumpServer cuyos quioscos ya no existen"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spinning': reconcilingJms }">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+                <span v-if="reconcilingJms">Reconciliando...</span>
+                <span v-else>Reconciliar JMS</span>
+              </button>
+
               <!-- Auto-Refresh Toggle Button -->
               <button 
                 :class="['auto-refresh-badge', { active: autoRefreshInterval > 0 }]"
@@ -1159,6 +1219,9 @@ onUnmounted(() => {
                 </button>
 
                 <div v-if="showActionsDropdown" class="toolbar-dropdown-menu" @click.stop>
+                  <div class="dropdown-menu-item" @click="reconcileJmsAssets(); showActionsDropdown = false">
+                    🧹 Reconciliar huérfanos en JumpServer
+                  </div>
                   <div class="dropdown-menu-item" @click="testAllConnectivity">
                     ⚡ Probar conectividad de todas las URLs
                   </div>
@@ -1313,9 +1376,13 @@ onUnmounted(() => {
                     </div>
                   </td>
 
-                  <!-- Estado Contenedor (Active Green Pulse or Idle Moon) -->
+                  <!-- Estado Contenedor (Active Green Pulse, Idle Moon, or Failed) -->
                   <td class="cell-lifecycle">
-                    <div v-if="k.container_status === 'running'" class="status-pill running">
+                    <div v-if="k.status === 'PROVISION_FAILED'" class="status-pill failed" :title="k.last_error || 'Fallo de socket RDP en el contenedor'">
+                      <span class="failed-indicator">⚠️</span>
+                      <span>Fallo de Inicio</span>
+                    </div>
+                    <div v-else-if="k.container_status === 'running'" class="status-pill running">
                       <span class="pulse-indicator"></span>
                       <span>Activo (En Sesión)</span>
                     </div>
@@ -1400,6 +1467,18 @@ onUnmounted(() => {
                       <button class="action-btn" title="Reiniciar sesión / contenedor" @click="restartKiosk(k.id, k.name)">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                        </svg>
+                      </button>
+
+                      <!-- Detener Sesión Activa (Liberar RAM) -->
+                      <button 
+                        v-if="k.container_status === 'running'" 
+                        class="action-btn action-stop" 
+                        title="Detener sesión activa y liberar 768 MB de RAM" 
+                        @click="stopKioskSession(k)"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
                         </svg>
                       </button>
 
@@ -2646,6 +2725,17 @@ onUnmounted(() => {
   color: var(--jms-text-secondary);
 }
 
+.status-pill.failed {
+  background: rgba(229, 62, 62, 0.12);
+  color: #E53E3E;
+  font-weight: 600;
+  border: 1px solid rgba(229, 62, 62, 0.3);
+}
+
+.failed-indicator {
+  font-size: 11px;
+}
+
 .pulse-indicator {
   width: 8px;
   height: 8px;
@@ -2765,6 +2855,27 @@ onUnmounted(() => {
 .action-btn.action-connect:hover {
   background: var(--milicic-orange);
   color: #ffffff;
+}
+
+.action-btn.action-stop {
+  color: #D69E2E;
+  border-color: rgba(214, 158, 46, 0.3);
+}
+
+.action-btn.action-stop:hover {
+  background: rgba(214, 158, 46, 0.15);
+  border-color: #D69E2E;
+  color: #B7791F;
+}
+
+.btn-reconcile {
+  border-color: rgba(144, 164, 174, 0.4);
+}
+
+.btn-reconcile:hover {
+  background: var(--jms-bg-subtle);
+  border-color: var(--milicic-orange);
+  color: var(--milicic-orange);
 }
 
 .action-btn.danger:hover {

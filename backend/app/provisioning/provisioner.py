@@ -387,6 +387,21 @@ class KioskProvisioner:
                 return False
             return self.docker.restart_container(k.container_name)
 
+    def stop_session(self, kiosk_id: str) -> bool:
+        """Manually stop the active container to free RAM and set status to IDLE."""
+        with self.db_factory() as session:
+            k = session.query(KioskModel).get(kiosk_id)
+            if not k:
+                return False
+            try:
+                self.docker.stop_container(k.container_name)
+            except Exception as e:
+                logger.warning("Error stopping container %s: %s", k.container_name, e)
+            k.status = "IDLE"
+            session.commit()
+            logger.info("Manually stopped session for kiosk %s (%s). RAM freed.", k.name, kiosk_id)
+            return True
+
     def update(self, kiosk_id: str, req: KioskUpdateRequest) -> Dict[str, Any]:
         with self.db_factory() as session:
             k = session.query(KioskModel).get(kiosk_id)

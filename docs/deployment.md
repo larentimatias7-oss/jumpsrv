@@ -211,6 +211,12 @@ Puede programarse como una tarea de cron periódica en el host:
 0 3 * * * curl -s -X POST -u admin:admin http://127.0.0.1:8000/api/kiosks/reconcile-jms > /dev/null
 ```
 
+De forma predeterminada, el backend de FastAPI ejecuta también un bucle asíncrono de reconciliación en segundo plano cada 12 horas. Este intervalo puede ajustarse en `.env`:
+```dotenv
+# Intervalo en horas para la reconciliación automática (0 para desactivar)
+JMS_RECONCILE_INTERVAL_HOURS=12
+```
+
 ### 5.2. Verificación de Socket RDP (Readiness Gate)
 Si se desea exigir la apertura exitosa del socket XRDP antes de crear el activo en JumpServer, active la variable en `.env`:
 ```dotenv

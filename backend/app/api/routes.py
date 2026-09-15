@@ -79,6 +79,16 @@ def restart_kiosk(kiosk_id: str):
     return {"status": "restarted", "kiosk_id": kiosk_id}
 
 
+@router.post("/kiosks/{kiosk_id}/stop")
+@router.post("/kiosks/{kiosk_id}/terminate-session")
+def stop_kiosk_session(kiosk_id: str):
+    """Manually stop the container and set status to IDLE to immediately reclaim host RAM."""
+    success = provisioner.stop_session(kiosk_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kiosk not found")
+    return {"status": "stopped", "kiosk_id": kiosk_id}
+
+
 @router.put("/kiosks/{kiosk_id}")
 def update_kiosk(kiosk_id: str, req: KioskUpdateRequest):
     try:

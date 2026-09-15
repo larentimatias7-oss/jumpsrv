@@ -401,3 +401,57 @@ def test_reconcile_api_endpoint(monkeypatch):
 
     app.dependency_overrides.clear()
 
+
+def test_stop_session_frees_ram(mock_jms_settings, in_memory_db):
+    mock_docker = Mock()
+    mock_client = Mock(spec=JumpServerClient)
+    mock_client.config = mock_jms_settings
+
+    with in_memory_db() as session:
+        kiosk = KioskModel(
+            id="kiosk-to-stop",
+            name="RUNNING-KIOSK",
+            device_type="generic",
+            target_url="http://10.0.0.1",
+            target_ip="10.0.0.1",
+            rdp_port=33893,
+            rdp_username="kiosk_running",
+            container_name="kiosk-running",
+            volume_name="rdp_running",
+            status="RUNNING",
+        )
+        session.add(kiosk)
+        session.commit()
+
+    provisioner = KioskProvisioner(
+        db_session_factory=in_memory_db,
+        docker_runtime=mock_docker,
+        jms_ops=JumpServerOperations(mock_client),
+    )
+
+    success = provisioner.stop_session("kiosk-to-stop")
+    assert success is True
+
+    mock_docker.stop_container.assert_called_once_with("kiosk-running")
+
+    with in_memory_db() as session:
+        k = session.query(KioskModel).get("kiosk-to-stop")
+        assert k.status == "IDLE"
+
+
+def test_stop_session_api_endpoint():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.auth.basic_auth import verify_credentials
+
+    app.dependency_overrides[verify_credentials] = lambda: "admin"
+
+    with patch("app.api.routes.provisioner.stop_session", return_value=True):
+        client = TestClient(app)
+        resp = client.post("/api/kiosks/test-kiosk-1/stop")
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "stopped", "kiosk_id": "test-kiosk-1"}
+
+    app.dependency_overrides.clear()
+
+
